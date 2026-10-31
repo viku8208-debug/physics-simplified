@@ -57,6 +57,8 @@ export default function App() {
   const [editing, setEditing] = useState<Row | null>(null)
   const [profile, setProfile] = useState({ full_name: '', class_level: '12', phone: '' })
   const [history, setHistory] = useState<Row[]>([])
+  const [recovering, setRecovering] = useState(false)
+  const [newPassword, setNewPassword] = useState('')
   const userEmail = session?.user?.email || ''
 
   const notify = (message: string) => setNotice(message)
@@ -109,7 +111,8 @@ export default function App() {
     void refreshAuth()
     void loadContent()
     if (!supabase) return
-    const { data } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === 'PASSWORD_RECOVERY') { setRecovering(true); setTab('account') }
       setSession(s)
       const allowed = ['teacher', 'admin'].includes(s?.user?.app_metadata?.role || '')
       setStaff(allowed)
@@ -146,6 +149,15 @@ export default function App() {
       setAuthMode('signin')
       notify('Confirmation email sent to ' + email.trim() + '. Verify it, then sign in.')
     }
+  }
+  const updateRecoveryPassword = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!supabase || newPassword.length < 8) return notify('Use a password with at least 8 characters.')
+    setBusy(true)
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    setBusy(false)
+    if (error) notify(error.message)
+    else { setRecovering(false); setNewPassword(''); notify('Password updated successfully. You can now sign in with your new password.') }
   }
   const resetPassword = async () => {
     if (!supabase || !email.trim()) return notify('Enter your email address first.')
@@ -371,7 +383,7 @@ export default function App() {
       <section className="teacher-strip"><div><span className="eyebrow">YOUR GUIDE THROUGH PHYSICS</span><h2>Learn with Suraj Bhardwaj.</h2><p>Physics becomes easier when ideas are explained clearly, patiently and with purpose.</p></div><button className="secondary light" onClick={() => changeTab('about')}>Know more about Suraj Sir <ArrowUpRight size={16}/></button></section>
     </main>}
 
-    {(['notes', 'videos', 'resources'] as Tab[]).includes(tab) && <main className="page"><div className="page-intro"><span className="eyebrow">THE LEARNING LIBRARY</span><h1>{tab === 'notes' ? 'Study notes' : tab === 'videos' ? 'Video lessons' : 'Learning resources'}<em>.</em></h1><p>Explore the latest material published by Suraj Bhardwaj.</p><button className="refresh" onClick={loadContent}><RefreshCw size={15}/> Refresh</button></div>{loading ? <div className="empty">Loading published material…</div> : cards(rows[tab], tab)}</main>}
+    {(['notes', 'videos', 'resources'] as ContentKey[]).includes(tab as ContentKey) && <main className="page"><div className="page-intro"><span className="eyebrow">THE LEARNING LIBRARY</span><h1>{tab === 'notes' ? 'Study notes' : tab === 'videos' ? 'Video lessons' : 'Learning resources'}<em>.</em></h1><p>Explore the latest material published by Suraj Bhardwaj.</p><button className="refresh" onClick={loadContent}><RefreshCw size={15}/> Refresh</button></div>{loading ? <div className="empty">Loading published material…</div> : cards(rows[tab as ContentKey], tab as ContentKey)}</main>}
 
     {tab === 'quizzes' && <main className="page"><div className="page-intro"><span className="eyebrow">PRACTICE WITH PURPOSE</span><h1>{activeQuiz ? activeQuiz.title : quizResult ? 'Quiz results' : 'Practice quizzes'}<em>.</em></h1><p>{activeQuiz ? 'Choose one answer for every question, then submit to see your score.' : 'Test your understanding and learn from every attempt.'}</p></div>
       {activeQuiz && <form className="quiz-panel" onSubmit={submitQuiz}><div className="quiz-topline"><span>{activeQuiz.subject || 'Physics'} · {activeQuiz.grade_label || 'All levels'}</span><button type="button" className="switch" onClick={leaveQuiz}>Exit quiz</button></div>
@@ -387,7 +399,7 @@ export default function App() {
     </main>}
 
     {tab === 'account' && <main className="page narrow"><div className="page-intro"><span className="eyebrow">YOUR LEARNING ACCOUNT</span><h1>{session ? 'Your account' : authMode === 'signin' ? 'Welcome back' : 'Create your account'}<em>.</em></h1><p>{session ? 'Manage your student details and review your quiz progress.' : 'Sign in or create a student account to attempt quizzes and track progress.'}</p></div>
-      {!session ? <form className="form-card" onSubmit={authMode === 'signin' ? signIn : signUp}>
+      {recovering ? <form className="form-card" onSubmit={updateRecoveryPassword}><h2>Set a new password</h2><label>New password<input required minLength={8} type="password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="At least 8 characters"/></label><button className="primary full" disabled={busy}>{busy ? 'Updating…' : 'Update password'} <Check size={16}/></button></form> : !session ? <form className="form-card" onSubmit={authMode === 'signin' ? signIn : signUp}>
         {authMode === 'signup' && <><label>Full name<input required minLength={2} value={name} onChange={e => setName(e.target.value)} placeholder="Your name"/></label><label>Class<select value={studentClass} onChange={e => setStudentClass(e.target.value)}>{[7, 8, 9, 10, 11, 12].map(n => <option value={String(n)} key={n}>Class {n}</option>)}</select></label></>}
         <label>Email address<input required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com"/></label>
         <label>Password<input required minLength={6} type="password" autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 6 characters"/></label>
