@@ -1,15 +1,10 @@
-<!-- LOVABLE:BEGIN -->
-> [!IMPORTANT]
-> This project is connected to [Lovable](https://lovable.dev). Avoid rewriting
-> published git history — force pushing, or rebasing/amending/squashing commits
-> that are already pushed — as it rewrites history on Lovable's side and the
-> user will likely lose their project history.
->
-> Commits you push to the connected branch sync back to Lovable and show up in
-> the editor, so keep the branch in a working state.
-<!-- LOVABLE:END -->
+# Physics Simplified project rules
 
-## Application rules
-- Validate Resources URL state with the TanStack Zod adapter and normalize supported filters in the page, so invalid links remain safe and optional values type-check.
-- Keep unconnected forms and teacher services non-persistent and explicitly unavailable; never simulate a backend success.
-- Live practice screens must not import the static question bank; real published questions and secure grading must be integrated before enabling practice.
+- Use the GitHub repository as the source of truth; do not make edits in Lovable.
+- Do not commit `.env.local`, Supabase secrets, service-role keys, passwords, or private teacher credentials.
+- The browser may use only the Supabase publishable key. All authorization must be enforced by database RLS and server-side RPCs.
+- Never let a public sign-up form assign teacher/admin roles. Teacher access may only be granted by a trusted administrator or a security-reviewed database function that checks the authenticated, email-confirmed identity against the fixed teacher allowlist. Never accept a client-supplied email or role as proof of authorization.
+- Keep empty states honest. Do not seed sample notes, fake videos, sample quizzes, fabricated metrics, or simulated success messages.
+- Publish only content the teacher owns or is authorised to share.
+- Supported classes are 7–12; supported subjects are Physics, Chemistry, Biology, General Science, and Mathematics.
+- Do not deploy to production without the user's explicit approval.

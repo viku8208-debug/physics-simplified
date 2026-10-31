@@ -1,29 +1,25 @@
-# Welcome to your Lovable project
+# Physics Simplified â€” Suraj Bhardwaj
 
-This project was built with [Lovable](https://lovable.dev).
+A responsive learning portal with a public student site and a protected teacher workspace. The website is built with React + TypeScript + Vite and uses the connected Supabase project for authentication, Postgres data and private file storage. The public teacher profile and class/subject filters reflect the details provided for Suraj Bhardwaj.
 
-## Build with Lovable
+## What is included
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+### Public website
+- Home page with the Physics Simplified identity and a live feed of published content.
+- Notes library with search, class/topic tags, rich text and secure document links.
+- Video lesson library with YouTube/Vimeo embeds and optional thumbnails.
+- Resources library for worksheets, question papers, practical material and references.
+- MCQ quizzes with server-side scoring and answer explanations shown after submission.
+- About and Contact pages.
+- Student account creation and sign-in.
+- English/Hindi language toggle for the main navigation and key interface labels.
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+### Teacher workspace (`/admin`)
+- Protected teacher/admin sign-in.
+- Live overview cards based on database counts (not sample metrics).
+- Create, edit, delete and publish/unpublish notes, video lessons, resources and quizzes.
+- Quiz builder with 2â€“6 options per question and a correct-answer explanation.
+- Contact inbox for messages sent through the website.
+- Notes/resources/thumbnail uploads to a private `study-materials` Storage bucket (up to 50 MB per file).
 
-## Development
-
-Prefer working locally? You need Node.js and npm â€” [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
-
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
+There are no seeded demo notes, f¶»§q«^
