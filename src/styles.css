@@ -425,3 +425,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
     transition: none;
   }
 }
+
+/* Theme tokens for the added review components */
+:root {
+  --color-muted-foreground: #98a9c1;
+  --color-border: var(--line);
+  --color-card: #101f36;
+  --color-foreground: #edf3ff;
+  --shadow-soft: 0 18px 42px rgba(0, 0, 0, 0.16);
+  --radius-2xl: 15px;
+}
