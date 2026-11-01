@@ -620,7 +620,7 @@ export default function App() {
     </main>}
 
     {tab === 'about' && <main className="page about"><div className="page-intro"><span className="eyebrow">THE TEACHER BEHIND THE METHOD</span><h1>Clarity changes<br/><em>everything.</em></h1><p>Physics by Suraj Bhardwaj is built around one idea: when the concept is clear, the subject becomes approachable.</p></div>
-      <div className="about-panel"><div className="teacher-portrait"><div className="portrait-glow"><PSBMark/></div><span>TEACHER PROFILE</span></div><div><span className="eyebrow">YOUR PHYSICS MENTOR</span><h2>Suraj Bhardwaj</h2><p>A science educator focused on helping students build strong fundamentals, understand the logic behind formulas and develop confidence through consistent practice.</p><p>This learning space brings together notes, video lessons, resources and quizzes in one place.</p><div className="teacher-tags"><span>Concept clarity</span><span>Focused learning</span><span>Physics</span></div></div></div>
+      <div className="about-panel"><div className="teacher-portrait"><img src="/suraj-sir-portrait.svg" alt="Suraj Bhardwaj, Physics teacher" /></div><div><span className="eyebrow">YOUR PHYSICS MENTOR</span><h2>Suraj Bhardwaj</h2><p>A science educator focused on helping students build strong fundamentals, understand the logic behind formulas and develop confidence through consistent practice.</p><p>This learning space brings together notes, video lessons, resources and quizzes in one place.</p><div className="teacher-tags"><span>Concept clarity</span><span>Focused learning</span><span>Physics</span></div></div></div>
     </main>}
 
     {tab === 'reviews' && <main className="page narrow">
