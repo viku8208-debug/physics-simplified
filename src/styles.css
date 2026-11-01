@@ -705,3 +705,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   .share-file-preview { height: 66vh; }
   .share-file-actions { align-items: flex-start; flex-direction: column; }
 }
+
+/* Suraj Sir's supplied portrait replaces the PSB logo placeholder in Meet Suraj Sir. */
+.teacher-portrait{padding:0;overflow:hidden;min-height:320px;background:#0b1a30;}
+.teacher-portrait img{display:block;width:100%;height:320px;object-fit:cover;object-position:center 24%;border-radius:15px;}
+@media(max-width:620px){.teacher-portrait{min-height:280px;}.teacher-portrait img{height:320px;object-position:center 22%;}}
