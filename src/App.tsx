@@ -545,7 +545,7 @@ export default function App() {
                 <span>{sharedResource.resource_type || 'Study material'}</span>
               </div>
               {!shareFileUrl && <button className="share-button" onClick={() => void openSharedResource()} disabled={shareFileLoading}>
-                {shareFileLoading ? 'Preparing secure resource…' : sharedResource.external_url ? 'Open resource' : 'View / download resource'}
+                {shareFileLoading ? 'Preparing secure resource…' : sharedResource.file_path ? 'View / download resource' : 'Open external resource'}
                 {!shareFileLoading && <ArrowUpRight size={17}/>}
               </button>}
               {shareFileUrl && <div className="share-file-area">
