@@ -435,3 +435,40 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   --shadow-soft: 0 18px 42px rgba(0, 0, 0, 0.16);
   --radius-2xl: 15px;
 }
+
+
+/* Use the exact generated PSB Atom + Education emblem */
+.psb-mark,
+.psb-mark-small {
+  display: inline-grid;
+  place-items: center;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.psb-logo-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 9px rgba(0, 111, 255, 0.18));
+}
+.teacher-portrait .psb-mark {
+  width: 116px;
+  height: 116px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.teacher-portrait .psb-logo-image {
+  width: 100%;
+  height: 100%;
+}
+.splash-screen img {
+  width: clamp(112px, 22vw, 160px);
+  height: auto;
+  object-fit: contain;
+}
