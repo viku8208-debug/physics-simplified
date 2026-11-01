@@ -19,14 +19,7 @@ const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.
 
 function PSBMark({ small = false }: { small?: boolean }) {
   return <span className={small ? 'psb-mark psb-mark-small' : 'psb-mark'} aria-label="PSB logo">
-    <svg viewBox="0 0 64 64" role="img" aria-hidden="true">
-      <defs><linearGradient id="psb-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#92f1ec"/><stop offset="1" stopColor="#45aabe"/></linearGradient></defs>
-      <circle cx="32" cy="32" r="28" fill="none" stroke="url(#psb-gradient)" strokeWidth="2"/>
-      <ellipse cx="32" cy="32" rx="22" ry="9" fill="none" stroke="#78e2e8" strokeWidth="2" transform="rotate(48 32 32)"/>
-      <ellipse cx="32" cy="32" rx="22" ry="9" fill="none" stroke="#78e2e8" strokeWidth="2" transform="rotate(-48 32 32)"/>
-      <circle cx="32" cy="32" r="3.4" fill="#b6ffff"/>
-      <text x="32" y="39" textAnchor="middle" fontSize="14" fontWeight="900" letterSpacing="-1" fill="#f0ffff" stroke="#0b2435" strokeWidth="1.2" paintOrder="stroke">PSB</text>
-    </svg>
+    <img className="psb-logo-image" src="/psb-logo.webp" alt="" />
   </span>
 }
 
@@ -426,7 +419,7 @@ export default function App() {
 
   return <div className="app">
     <div className={showSplash ? 'splash-screen is-visible' : 'splash-screen is-hidden'} aria-hidden={!showSplash}>
-      <img src="/psb-logo.svg" alt="PSB logo" />
+      <img src="/psb-logo.webp" alt="PSB logo" />
       <b>PHYSICS BY SURAJ BHARDWAJ</b>
       <span>Concept to Clarity</span>
     </div>
