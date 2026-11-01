@@ -336,7 +336,7 @@ export default function App() {
   }
   const openSharedResource = async () => {
     if (!sharedResource) return
-    if (sharedResource.external_url) {
+    if (!sharedResource.file_path && sharedResource.external_url) {
       try {
         const target = new URL(sharedResource.external_url)
         if (!['https:', 'http:'].includes(target.protocol)) throw new Error('Unsupported link type.')
