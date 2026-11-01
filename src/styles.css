@@ -472,3 +472,61 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   height: auto;
   object-fit: contain;
 }
+
+
+/* Larger, higher-contrast PSB identity so the original emblem is easy to see */
+.psb-mark {
+  width: 66px;
+  height: 66px;
+  flex: 0 0 66px;
+  filter: drop-shadow(0 0 10px rgba(28, 143, 255, 0.34));
+}
+.psb-mark-small {
+  width: 58px;
+  height: 58px;
+  flex-basis: 58px;
+}
+.psb-logo-image {
+  object-fit: contain;
+  filter: brightness(1.08) contrast(1.08) drop-shadow(0 3px 12px rgba(0, 132, 255, 0.4));
+}
+.teacher-portrait .psb-mark {
+  width: 176px;
+  height: 176px;
+  flex-basis: 176px;
+  filter: drop-shadow(0 0 24px rgba(25, 152, 255, 0.42));
+}
+.splash-screen {
+  gap: 1rem;
+}
+.splash-screen img {
+  width: clamp(220px, 46vw, 300px);
+  max-height: 43vh;
+  height: auto;
+  border-radius: 0;
+  object-fit: contain;
+  filter: brightness(1.08) contrast(1.08)
+    drop-shadow(0 12px 28px rgba(0, 145, 255, 0.46))
+    drop-shadow(0 0 8px rgba(255, 255, 255, 0.12));
+}
+@media (max-width: 620px) {
+  .psb-mark {
+    width: 54px;
+    height: 54px;
+    flex-basis: 54px;
+  }
+  .psb-mark-small {
+    width: 50px;
+    height: 50px;
+    flex-basis: 50px;
+  }
+  .teacher-portrait .psb-mark {
+    width: 148px;
+    height: 148px;
+    flex-basis: 148px;
+  }
+  .splash-screen img {
+    width: min(78vw, 260px);
+    max-height: 40vh;
+  }
+}
