@@ -30,7 +30,7 @@ function PSBMark({ small = false }: { small?: boolean }) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('home')
+  const [tab, setTab] = useState<Tab>(() => window.location.pathname.toLowerCase().endsWith('/admin.html') ? 'admin' : 'home')
   const [mobile, setMobile] = useState(false)
   const [session, setSession] = useState<any>(null)
   const [staff, setStaff] = useState(false)
@@ -132,7 +132,7 @@ export default function App() {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
     setBusy(false)
     if (error) notify(error.message)
-    else { await refreshAuth(); await loadContent(); notify('You are signed in.'); setTab('home') }
+    else { await refreshAuth(); await loadContent(); notify('You are signed in.'); setTab(window.location.pathname.toLowerCase().endsWith('/admin.html') ? 'admin' : 'home') }
   }
   const signUp = async (e: FormEvent) => {
     e.preventDefault()
@@ -337,7 +337,7 @@ export default function App() {
     notify(error ? error.message : 'Your message has been sent to the teaching team.')
     if (!error) setContact({ name: '', email: '', subject: '', message: '', class_level: '' })
   }
-  const changeTab = (t: Tab) => { setTab(t); setMobile(false); setNotice(''); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  const changeTab = (t: Tab) => { setTab(t); window.history.replaceState({}, '', t === 'admin' ? '/admin.html' : '/'); setMobile(false); setNotice(''); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const contentRows = (Object.keys(tableFor) as ContentKey[]).flatMap(key => rows[key].map(item => ({ ...item, _key: key, _table: tableFor[key] })))
   const publishedCount = (key: ContentKey) => rows[key].filter(item => item.is_published).length
 
