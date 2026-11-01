@@ -125,10 +125,9 @@ export default function App() {
     else setReviews(data || [])
     setReviewLoading(false)
   }
-  const checkMyReview = async () => {
-    if (!supabase || !session?.user) { setHasReviewed(false); return }
-    const { data, error } = await supabase.rpc('has_my_review')
-    if (!error) setHasReviewed(Boolean(data))
+  const checkMyReview = () => {
+    if (!session?.user) { setHasReviewed(false); return }
+    setHasReviewed(window.localStorage.getItem('psb-reviewed-' + session.user.id) === '1')
   }
 
   useEffect(() => {
@@ -397,11 +396,14 @@ export default function App() {
     })
     setBusy(false)
     if (error) {
-      notify(error.code === '23505'
-        ? 'Only one review is allowed per student account.'
-        : error.message)
+      if (error.code === '23505') {
+        setHasReviewed(true)
+        window.localStorage.setItem('psb-reviewed-' + session.user.id, '1')
+        notify('Only one review is allowed per student account. Your earlier review is already on record.')
+      } else notify(error.message)
     } else {
       setHasReviewed(true)
+      window.localStorage.setItem('psb-reviewed-' + session.user.id, '1')
       setReviewDraft({ rating: 5, comment: '' })
       await loadReviews()
       notify('Thank you. Your verified review is now live.')
