@@ -337,7 +337,7 @@ export default function App() {
     notify(error ? error.message : 'Your message has been sent to the teaching team.')
     if (!error) setContact({ name: '', email: '', subject: '', message: '', class_level: '' })
   }
-  const changeTab = (t: Tab) => { setTab(t); window.history.replaceState({}, '', t === 'admin' ? '/admin.html' : '/'); setMobile(false); setNotice(''); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  const changeTab = (t: Tab) => { const keepAdminPath = t === 'admin' || (t === 'account' && window.location.pathname.toLowerCase().endsWith('/admin.html')); setTab(t); window.history.replaceState({}, '', keepAdminPath ? '/admin.html' : '/'); setMobile(false); setNotice(''); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const contentRows = (Object.keys(tableFor) as ContentKey[]).flatMap(key => rows[key].map(item => ({ ...item, _key: key, _table: tableFor[key] })))
   const publishedCount = (key: ContentKey) => rows[key].filter(item => item.is_published).length
 
