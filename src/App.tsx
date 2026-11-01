@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ChangeEvent } from 'react'
 import { supabase } from './lib/supabase'
-import { Atom, BookOpen, Video, FileText, ClipboardList, LogIn, LogOut, Menu, X, ArrowUpRight, ShieldCheck, GraduationCap, Mail, Lock, Plus, RefreshCw, Upload, Trash2, Pencil, Check, CircleHelp, Trophy, UserRound, MessageSquare, Eye, EyeOff, RotateCcw, Download, Play, Clock3, Sparkles } from 'lucide-react'
+import { Atom, BookOpen, Video, FileText, ClipboardList, LogIn, LogOut, Menu, X, ArrowUpRight, ShieldCheck, GraduationCap, Mail, Lock, Plus, RefreshCw, Upload, Trash2, Pencil, Check, CircleHelp, Trophy, UserRound, MessageSquare, Eye, EyeOff, RotateCcw, Download, Play, Clock3, Sparkles, Share2 } from 'lucide-react'
 
 type Tab = 'home' | 'notes' | 'videos' | 'resources' | 'quizzes' | 'about' | 'contact' | 'reviews' | 'account' | 'admin'
 type Row = Record<string, any>
@@ -58,6 +58,14 @@ export default function App() {
   const [reviewLoading, setReviewLoading] = useState(false)
   const [hasReviewed, setHasReviewed] = useState(false)
   const [showSplash, setShowSplash] = useState(true)
+  const [sharedResource, setSharedResource] = useState<Row | null>(null)
+  const [sharePageLoading, setSharePageLoading] = useState(false)
+  const [sharePageError, setSharePageError] = useState('')
+  const [shareFileLoading, setShareFileLoading] = useState(false)
+  const [shareFileUrl, setShareFileUrl] = useState('')
+  const [shareFileName, setShareFileName] = useState('')
+  const [shareFileType, setShareFileType] = useState('')
+  const resourceShareCode = window.location.pathname.match(/^\\/r\\/(psb-[A-Za-z0-9_-]{16})\\/?$/)?.[1] || ''
   const userEmail = session?.user?.email || ''
 
   const notify = (message: string) => setNotice(message)
@@ -143,6 +151,35 @@ export default function App() {
     const timer = window.setTimeout(() => setShowSplash(false), 1650)
     return () => window.clearTimeout(timer)
   }, [])
+  useEffect(() => {
+    if (!resourceShareCode) return
+    let cancelled = false
+    setSharePageLoading(true)
+    setSharePageError('')
+    void (async () => {
+      if (!supabase) {
+        if (!cancelled) {
+          setSharePageLoading(false)
+          setSharePageError('The resource service is temporarily unavailable.')
+        }
+        return
+      }
+      const { data, error } = await supabase.rpc('resolve_resource_share_link', { p_code: resourceShareCode })
+      if (cancelled) return
+      if (error || !data) {
+        setSharePageError('This resource link is invalid, expired, or no longer published.')
+      } else {
+        setSharedResource(data as Row)
+      }
+      setSharePageLoading(false)
+    })()
+    return () => { cancelled = true }
+  }, [resourceShareCode])
+  useEffect(() => {
+    return () => {
+      if (shareFileUrl) URL.revokeObjectURL(shareFileUrl)
+    }
+  }, [shareFileUrl])
   useEffect(() => {
     void loadReviews()
     if (!supabase) return
@@ -272,6 +309,72 @@ export default function App() {
     const url = item.external_url || item.video_url
     if (url) window.open(url, '_blank', 'noopener,noreferrer')
     else notify('This item does not have a file or link attached yet.')
+  }
+  const shareResource = async (item: Row) => {
+    if (!supabase || !staff) return notify('Only the teacher can create resource share links.')
+    setBusy(true)
+    const { data, error } = await supabase.rpc('create_resource_share_link', { p_resource_id: item.id })
+    setBusy(false)
+    if (error || !data) return notify(error?.message || 'Could not create a resource link.')
+    const url = new URL('/r/' + data, window.location.origin).toString()
+    const shareText = item.title + ' · Physics by Suraj Bhardwaj'
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: item.title, text: shareText, url })
+        notify('Resource link shared.')
+        return
+      } catch (shareError) {
+        if ((shareError as Error)?.name === 'AbortError') return
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      notify('Short PSB resource link copied. You can share it on WhatsApp.')
+    } catch {
+      notify('Your short resource link: ' + url)
+    }
+  }
+  const openSharedResource = async () => {
+    if (!sharedResource) return
+    if (sharedResource.external_url) {
+      try {
+        const target = new URL(sharedResource.external_url)
+        if (!['https:', 'http:'].includes(target.protocol)) throw new Error('Unsupported link type.')
+        window.open(target.toString(), '_blank', 'noopener,noreferrer')
+      } catch {
+        setSharePageError('This resource has an invalid external link. Please contact the teacher.')
+      }
+      return
+    }
+    if (!supabase || !sharedResource.file_path) {
+      setSharePageError('No file is attached to this resource.')
+      return
+    }
+    setShareFileLoading(true)
+    setSharePageError('')
+    try {
+      // The short PSB URL stays in the address bar. The temporary signed Storage URL
+      // is fetched in the background and only a local blob URL is used for viewing.
+      const { data, error } = await supabase.storage
+        .from('study-materials')
+        .createSignedUrl(sharedResource.file_path, 120)
+      if (error || !data?.signedUrl) throw new Error(error?.message || 'Could not prepare the file.')
+      const response = await fetch(data.signedUrl, { cache: 'no-store' })
+      if (!response.ok) throw new Error('Could not download the shared file.')
+      const blob = await response.blob()
+      const extension = sharedResource.file_path.match(/\\.[a-z0-9]{2,6}$/i)?.[0] || ''
+      const safeTitle = String(sharedResource.title || 'PSB-resource')
+        .replace(/[^a-z0-9_-]+/gi, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 64) || 'PSB-resource'
+      setShareFileName(safeTitle + extension)
+      setShareFileType(blob.type || '')
+      setShareFileUrl(URL.createObjectURL(blob))
+    } catch (error) {
+      setSharePageError((error as Error)?.message || 'Could not open the shared resource.')
+    } finally {
+      setShareFileLoading(false)
+    }
   }
   const saveContent = async (e: FormEvent) => {
     e.preventDefault()
@@ -411,11 +514,55 @@ export default function App() {
       <div className="card-icon">{key === 'videos' ? <Video/> : key === 'quizzes' ? <ClipboardList/> : key === 'resources' ? <FileText/> : <BookOpen/>}</div>
       <div className="card-meta">{item.grade_label || (item.class_level ? 'Class ' + item.class_level : 'Physics')} · {item.subject || 'Physics'}</div>
       <h3>{item.title}</h3><p>{item.description || item.topic || 'Learning material from Suraj Bhardwaj.'}</p>
-      {key === 'quizzes' ? <button className="text-link" onClick={() => startQuiz(item)} disabled={busy}><Play size={15}/> Start quiz <ArrowUpRight size={15}/></button>
-        : <button className="text-link" onClick={() => openContent(item)}>{key === 'videos' ? 'Watch lesson' : 'Open material'} <ArrowUpRight size={15}/></button>}
+      <div className="content-card-actions">
+        {key === 'quizzes' ? <button className="text-link" onClick={() => startQuiz(item)} disabled={busy}><Play size={15}/> Start quiz <ArrowUpRight size={15}/></button>
+          : <button className="text-link" onClick={() => openContent(item)}>{key === 'videos' ? 'Watch lesson' : 'Open material'} <ArrowUpRight size={15}/></button>}
+        {staff && key === 'resources' && <button className="text-link resource-share-link" onClick={() => shareResource(item)} disabled={busy}><Share2 size={14}/> Share short link</button>}
+      </div>
       {key === 'quizzes' && item.duration_minutes && <span className="tiny-meta"><Clock3 size={12}/> {item.duration_minutes} min</span>}
     </article>)}</div>
     : <div className="empty"><div className="empty-symbol"><BookOpen/></div><h3>New learning material is on its way</h3><p>Suraj Sir will publish verified notes, lessons and resources here. Please check back soon.</p></div>
+
+  if (resourceShareCode) {
+    const isPdf = shareFileName.toLowerCase().endsWith('.pdf') || shareFileType === 'application/pdf'
+    const isImage = shareFileType.startsWith('image/') || /\\.(png|jpe?g)$/i.test(shareFileName)
+    return <div className="app share-page">
+      <main className="share-shell">
+        <div className="share-brand">
+          <PSBMark />
+          <div><b>PHYSICS BY SURAJ BHARDWAJ</b><small>Concept to Clarity · PSB</small></div>
+        </div>
+        <section className="share-card">
+          {sharePageLoading ? <div className="share-state"><div className="share-spinner" /><h2>Loading resource…</h2><p>Opening a shared PSB learning resource.</p></div>
+            : sharePageError ? <div className="share-state"><h2>Resource unavailable</h2><p>{sharePageError}</p><a className="share-button" href="/">Visit website</a></div>
+            : sharedResource ? <>
+              <span className="eyebrow">SHARED STUDY RESOURCE</span>
+              <h1>{sharedResource.title}</h1>
+              <p className="share-description">{sharedResource.description || 'A learning resource shared by Physics by Suraj Bhardwaj.'}</p>
+              <div className="share-meta">
+                <span>{sharedResource.class_level ? 'Class ' + sharedResource.class_level : 'Physics'}</span>
+                <span>{sharedResource.subject || 'Physics'}</span>
+                <span>{sharedResource.resource_type || 'Study material'}</span>
+              </div>
+              {!shareFileUrl && <button className="share-button" onClick={() => void openSharedResource()} disabled={shareFileLoading}>
+                {shareFileLoading ? 'Preparing secure resource…' : sharedResource.external_url ? 'Open resource' : 'View / download resource'}
+                {!shareFileLoading && <ArrowUpRight size={17}/>}
+              </button>}
+              {shareFileUrl && <div className="share-file-area">
+                <div className="share-file-actions">
+                  <a className="share-button" href={shareFileUrl} download={shareFileName}><Download size={16}/> Download {shareFileName}</a>
+                  <a className="share-secondary" href={shareFileUrl} target="_blank" rel="noreferrer">Open in new tab <ArrowUpRight size={15}/></a>
+                </div>
+                {isPdf && <iframe className="share-file-preview" src={shareFileUrl} title={sharedResource.title + ' preview'} />}
+                {isImage && <img className="share-image-preview" src={shareFileUrl} alt={sharedResource.title} />}
+                {!isPdf && !isImage && <p className="share-download-hint">Your file is ready. Use the Download button above to save it.</p>}
+              </div>}
+            </> : null}
+        </section>
+        <footer className="share-footer">A secure, short link from Physics by Suraj Bhardwaj · <a href="/">Open PSB website</a></footer>
+      </main>
+    </div>
+  }
 
   return <div className="app">
     <div className={showSplash ? 'splash-screen is-visible' : 'splash-screen is-hidden'} aria-hidden={!showSplash}>

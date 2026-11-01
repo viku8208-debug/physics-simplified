@@ -3,6 +3,10 @@
     {
       "source": "/admin.html",
       "destination": "/"
+    },
+    {
+      "source": "/r/:code",
+      "destination": "/"
     }
   ]
 }
