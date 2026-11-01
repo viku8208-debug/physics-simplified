@@ -3,7 +3,7 @@ import type { FormEvent, ChangeEvent } from 'react'
 import { supabase } from './lib/supabase'
 import { Atom, BookOpen, Video, FileText, ClipboardList, LogIn, LogOut, Menu, X, ArrowUpRight, ShieldCheck, GraduationCap, Mail, Lock, Plus, RefreshCw, Upload, Trash2, Pencil, Check, CircleHelp, Trophy, UserRound, MessageSquare, Eye, EyeOff, RotateCcw, Download, Play, Clock3, Sparkles } from 'lucide-react'
 
-type Tab = 'home' | 'notes' | 'videos' | 'resources' | 'quizzes' | 'about' | 'contact' | 'account' | 'admin'
+type Tab = 'home' | 'notes' | 'videos' | 'resources' | 'quizzes' | 'about' | 'contact' | 'reviews' | 'account' | 'admin'
 type Row = Record<string, any>
 type ContentKey = 'notes' | 'videos' | 'resources' | 'quizzes'
 const tableFor: Record<ContentKey, string> = { notes: 'notes', videos: 'video_lessons', resources: 'resources', quizzes: 'quizzes' }
@@ -11,7 +11,8 @@ const labelFor: Record<ContentKey, string> = { notes: 'Notes', videos: 'Video le
 const nav: { id: Tab; label: string }[] = [
   { id: 'notes', label: 'Notes' }, { id: 'videos', label: 'Video lessons' },
   { id: 'resources', label: 'Resources' }, { id: 'quizzes', label: 'Quizzes' },
-  { id: 'about', label: 'About Suraj Sir' }, { id: 'contact', label: 'Contact' }
+  { id: 'about', label: 'About Suraj Sir' }, { id: 'contact', label: 'Contact' },
+  { id: 'reviews', label: 'Reviews' }
 ]
 const emptyForm = { type: 'note', title: '', description: '', subject: 'Physics', grade_label: 'Class 12', topic: '', url: '', duration: '20' }
 const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'image/png', 'image/jpeg']
@@ -59,6 +60,11 @@ export default function App() {
   const [history, setHistory] = useState<Row[]>([])
   const [recovering, setRecovering] = useState(false)
   const [newPassword, setNewPassword] = useState('')
+  const [reviews, setReviews] = useState<Row[]>([])
+  const [reviewDraft, setReviewDraft] = useState({ rating: 5, comment: '' })
+  const [reviewLoading, setReviewLoading] = useState(false)
+  const [hasReviewed, setHasReviewed] = useState(false)
+  const [showSplash, setShowSplash] = useState(true)
   const userEmail = session?.user?.email || ''
 
   const notify = (message: string) => setNotice(message)
@@ -107,6 +113,24 @@ export default function App() {
     if (!error) setHistory(data || [])
   }
 
+  const loadReviews = async () => {
+    if (!supabase) return
+    setReviewLoading(true)
+    const { data, error } = await supabase
+      .from('reviews')
+      .select('id,display_name,class_level,rating,comment,created_at')
+      .order('created_at', { ascending: false })
+      .limit(40)
+    if (error) console.warn('Reviews could not be loaded:', error.message)
+    else setReviews(data || [])
+    setReviewLoading(false)
+  }
+  const checkMyReview = async () => {
+    if (!supabase || !session?.user) { setHasReviewed(false); return }
+    const { data, error } = await supabase.rpc('has_my_review')
+    if (!error) setHasReviewed(Boolean(data))
+  }
+
   useEffect(() => {
     void refreshAuth()
     void loadContent()
@@ -123,6 +147,30 @@ export default function App() {
   }, [])
   useEffect(() => { if (staff) { void loadContent(); void loadTeacherData() } }, [staff])
   useEffect(() => { if (session?.user) void loadStudentHistory() }, [session?.user?.id])
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowSplash(false), 1650)
+    return () => window.clearTimeout(timer)
+  }, [])
+  useEffect(() => {
+    void loadReviews()
+    if (!supabase) return
+    const channel = supabase
+      .channel('public-reviews-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'reviews' }, payload => {
+        const incoming = payload.new as Row
+        if (!incoming?.id) return
+        setReviews(current => {
+          const next = [incoming, ...current.filter(item => item.id !== incoming.id)]
+          return next.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()).slice(0, 40)
+        })
+      })
+      .subscribe()
+    return () => { void supabase.removeChannel(channel) }
+  }, [])
+  useEffect(() => {
+    if (session?.user) void checkMyReview()
+    else setHasReviewed(false)
+  }, [session?.user?.id])
   const count = useMemo(() => Object.values(rows).reduce((n, list) => n + list.filter(item => item.is_published).length, 0), [rows])
 
   const signIn = async (e: FormEvent) => {
@@ -170,11 +218,11 @@ export default function App() {
     e.preventDefault()
     if (!supabase || !session?.user) return
     setBusy(true)
-    const { error } = await supabase.from('profiles').upsert({
-      id: session.user.id, full_name: profile.full_name.trim(), class_level: Number(profile.class_level) || null, phone: profile.phone.trim() || null
-    }, { onConflict: 'id' })
+    const { error } = await supabase.from('profiles')
+      .update({ phone: profile.phone.trim() || null })
+      .eq('id', session.user.id)
     setBusy(false)
-    notify(error ? error.message : 'Your profile has been saved.')
+    notify(error ? error.message : 'Your contact number has been saved.')
   }
   const claimTeacher = async () => {
     if (!supabase) return
@@ -337,6 +385,28 @@ export default function App() {
     notify(error ? error.message : 'Your message has been sent to the teaching team.')
     if (!error) setContact({ name: '', email: '', subject: '', message: '', class_level: '' })
   }
+  const submitReview = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!supabase) return notify('Backend configuration is missing.')
+    if (!session?.user) { notify('Please sign in before submitting a review.'); changeTab('account'); return }
+    if (reviewDraft.comment.trim().length < 8) return notify('Please write at least 8 characters.')
+    setBusy(true)
+    const { error } = await supabase.from('reviews').insert({
+      rating: Number(reviewDraft.rating),
+      comment: reviewDraft.comment.trim()
+    })
+    setBusy(false)
+    if (error) {
+      notify(error.code === '23505'
+        ? 'Only one review is allowed per student account.'
+        : error.message)
+    } else {
+      setHasReviewed(true)
+      setReviewDraft({ rating: 5, comment: '' })
+      await loadReviews()
+      notify('Thank you. Your verified review is now live.')
+    }
+  }
   const changeTab = (t: Tab) => { const keepAdminPath = t === 'admin' || (t === 'account' && window.location.pathname.toLowerCase().endsWith('/admin.html')); setTab(t); window.history.replaceState({}, '', keepAdminPath ? '/admin.html' : '/'); setMobile(false); setNotice(''); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const contentRows = (Object.keys(tableFor) as ContentKey[]).flatMap(key => rows[key].map(item => ({ ...item, _key: key, _table: tableFor[key] })))
   const publishedCount = (key: ContentKey) => rows[key].filter(item => item.is_published).length
@@ -353,6 +423,11 @@ export default function App() {
     : <div className="empty"><div className="empty-symbol"><BookOpen/></div><h3>New learning material is on its way</h3><p>Suraj Sir will publish verified notes, lessons and resources here. Please check back soon.</p></div>
 
   return <div className="app">
+    <div className={showSplash ? 'splash-screen is-visible' : 'splash-screen is-hidden'} aria-hidden={!showSplash}>
+      <img src="/psb-logo.svg" alt="PSB logo" />
+      <b>PHYSICS BY SURAJ BHARDWAJ</b>
+      <span>Concept to Clarity</span>
+    </div>
     <div className="topline"><span>PHYSICS, MADE CLEAR.</span><span>Learn with curiosity · Grow with confidence</span></div>
     <header className="header">
       <button className="brand" onClick={() => changeTab('home')} aria-label="Physics by Suraj Bhardwaj home"><PSBMark/><span><b>PHYSICS <i>BY SURAJ BHARDWAJ</i></b><small>Concept to Clarity · PSB</small></span></button>
@@ -381,6 +456,14 @@ export default function App() {
         <div className="feature-grid">{nav.slice(0, 4).map((n, i) => <button className="feature" key={n.id} onClick={() => changeTab(n.id)}><span className="feature-no">0{i + 1}</span><span className="feature-icon">{i === 0 ? <BookOpen/> : i === 1 ? <Video/> : i === 2 ? <FileText/> : <ClipboardList/>}</span><b>{n.label}</b><small>{['Clear notes for focused revision.', 'Learn important ideas visually.', 'Extra material for deeper study.', 'Test what you have understood.'][i]}</small><span className="feature-arrow"><ArrowUpRight/></span></button>)}</div>
       </section>
       <section className="teacher-strip"><div><span className="eyebrow">YOUR GUIDE THROUGH PHYSICS</span><h2>Learn with Suraj Bhardwaj.</h2><p>Physics becomes easier when ideas are explained clearly, patiently and with purpose.</p></div><button className="secondary light" onClick={() => changeTab('about')}>Know more about Suraj Sir <ArrowUpRight size={16}/></button></section>
+      <section className="section review-invite">
+        <div className="section-head">
+          <div><span className="eyebrow">STUDENT VOICES</span><h2>Real experiences. Real students.</h2>
+            <p>{reviews.length ? reviews.length + ' verified student review' + (reviews.length === 1 ? '' : 's') + ' shared so far.' : 'Your experience can help another student find clarity.'}</p>
+          </div>
+          <button className="primary" onClick={() => changeTab('reviews')}>Read / write a review <ArrowUpRight size={16}/></button>
+        </div>
+      </section>
     </main>}
 
     {(['notes', 'videos', 'resources'] as ContentKey[]).includes(tab as ContentKey) && <main className="page"><div className="page-intro"><span className="eyebrow">THE LEARNING LIBRARY</span><h1>{tab === 'notes' ? 'Study notes' : tab === 'videos' ? 'Video lessons' : 'Learning resources'}<em>.</em></h1><p>Explore the latest material published by Suraj Bhardwaj.</p><button className="refresh" onClick={loadContent}><RefreshCw size={15}/> Refresh</button></div>{loading ? <div className="empty">Loading published material…</div> : cards(rows[tab as ContentKey], tab as ContentKey)}</main>}
@@ -398,6 +481,32 @@ export default function App() {
       <div className="about-panel"><div className="teacher-portrait"><div className="portrait-glow"><PSBMark/></div><span>TEACHER PROFILE</span></div><div><span className="eyebrow">YOUR PHYSICS MENTOR</span><h2>Suraj Bhardwaj</h2><p>A science educator focused on helping students build strong fundamentals, understand the logic behind formulas and develop confidence through consistent practice.</p><p>This learning space brings together notes, video lessons, resources and quizzes in one place.</p><div className="teacher-tags"><span>Concept clarity</span><span>Focused learning</span><span>Physics</span></div></div></div>
     </main>}
 
+    {tab === 'reviews' && <main className="page narrow">
+      <div className="page-intro"><span className="eyebrow">STUDENT VOICES</span><h1>Reviews & feedback<em>.</em></h1>
+        <p>Only signed-in students with a confirmed email address can submit one review per account.</p>
+      </div>
+      {!session ? <div className="form-card review-auth-card"><h2>Share your experience</h2><p>Sign in or create a student account before writing a review.</p><button className="primary full" onClick={() => changeTab('account')}>Sign in / create account <ArrowUpRight size={16}/></button></div>
+        : hasReviewed ? <div className="empty review-thanks"><div className="empty-symbol"><Check/></div><h3>Thank you for your review.</h3><p>Your review has been submitted from this verified student account. One review per account is allowed.</p></div>
+        : <form className="form-card review-form" onSubmit={submitReview}>
+          <h2>Write a review</h2>
+          <label>Your rating</label>
+          <div className="rating-picker" role="radiogroup" aria-label="Choose a rating">
+            {[1, 2, 3, 4, 5].map(value => <button key={value} type="button" role="radio" aria-checked={reviewDraft.rating === value} className={reviewDraft.rating >= value ? 'rating-star selected' : 'rating-star'} onClick={() => setReviewDraft({ ...reviewDraft, rating: value })}>★</button>)}
+            <span>{reviewDraft.rating} / 5</span>
+          </div>
+          <label>Your experience<textarea required minLength={8} maxLength={500} value={reviewDraft.comment} onChange={e => setReviewDraft({ ...reviewDraft, comment: e.target.value })} placeholder="What helped you understand Physics better?" /></label>
+          <small className="review-hint">Your name and class are taken from your registered profile and cannot be edited here.</small>
+          <button className="primary full" disabled={busy}>{busy ? 'Submitting…' : 'Submit review'} <ArrowUpRight size={16}/></button>
+        </form>}
+      <section className="review-list-section">
+        <div className="section-head"><div><span className="eyebrow">VERIFIED STUDENT FEEDBACK</span><h2>What students say</h2></div><span className="tiny-meta">{reviews.length} review{reviews.length === 1 ? '' : 's'}</span></div>
+        {reviewLoading ? <div className="empty">Loading reviews…</div> : reviews.length ? <div className="review-list">{reviews.map(review => <article className="review-card" key={review.id}>
+          <div className="review-card-head"><div><b>{review.display_name}</b><small>{review.class_level ? 'Class ' + review.class_level : 'Student'}</small></div><span className="review-stars" aria-label={review.rating + ' out of 5 stars'}>{'★'.repeat(Number(review.rating))}{'☆'.repeat(5 - Number(review.rating))}</span></div>
+          <p>{review.comment}</p><time dateTime={review.created_at}>{new Date(review.created_at).toLocaleDateString()}</time>
+        </article>)}</div> : <div className="empty">No reviews have been submitted yet. Be the first student to share an experience.</div>}
+      </section>
+    </main>}
+
     {tab === 'account' && <main className="page narrow"><div className="page-intro"><span className="eyebrow">YOUR LEARNING ACCOUNT</span><h1>{session ? 'Your account' : authMode === 'signin' ? 'Welcome back' : 'Create your account'}<em>.</em></h1><p>{session ? 'Manage your student details and review your quiz progress.' : 'Sign in or create a student account to attempt quizzes and track progress.'}</p></div>
       {recovering ? <form className="form-card" onSubmit={updateRecoveryPassword}><h2>Set a new password</h2><label>New password<input required minLength={8} type="password" autoComplete="new-password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="At least 8 characters"/></label><button className="primary full" disabled={busy}>{busy ? 'Updating…' : 'Update password'} <Check size={16}/></button></form> : !session ? <form className="form-card" onSubmit={authMode === 'signin' ? signIn : signUp}>
         {authMode === 'signup' && <><label>Full name<input required minLength={2} value={name} onChange={e => setName(e.target.value)} placeholder="Your name"/></label><label>Class<select value={studentClass} onChange={e => setStudentClass(e.target.value)}>{[7, 8, 9, 10, 11, 12].map(n => <option value={String(n)} key={n}>Class {n}</option>)}</select></label></>}
@@ -407,7 +516,7 @@ export default function App() {
         {authMode === 'signin' && <button type="button" className="switch" onClick={resetPassword} disabled={busy}>Forgot password? Send reset email</button>}
         <button type="button" className="switch" onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}>{authMode === 'signin' ? 'New here? Create an account' : 'Already registered? Sign in'}</button>
       </form> : <div className="account-layout"><div className="account-summary"><UserRound/><b>{userEmail}</b><span>{staff ? 'Teacher account' : 'Student account'}</span><button className="secondary" onClick={signOut}><LogOut size={15}/> Sign out</button></div>
-        <form className="form-card" onSubmit={saveProfile}><h2>Student profile</h2><label>Full name<input value={profile.full_name} onChange={e => setProfile({ ...profile, full_name: e.target.value })}/></label><label>Class<select value={profile.class_level} onChange={e => setProfile({ ...profile, class_level: e.target.value })}>{[7, 8, 9, 10, 11, 12].map(n => <option key={n} value={String(n)}>Class {n}</option>)}</select></label><label>Phone (optional)<input value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} placeholder="Your contact number"/></label><button className="primary full" disabled={busy}>Save profile <Check size={16}/></button></form>
+        <form className="form-card" onSubmit={saveProfile}><h2>Student profile</h2><label>Full name<input value={profile.full_name} readOnly disabled/><small className="review-hint">Registered name is locked after account creation.</small></label><label>Class<input value={'Class ' + profile.class_level} readOnly disabled/><small className="review-hint">Registered class is locked after account creation.</small></label><label>Phone (optional)<input value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} placeholder="Your contact number"/></label><button className="primary full" disabled={busy}>Save contact number <Check size={16}/></button></form>
         <div className="history-panel"><h2><Trophy size={18}/> Recent quiz attempts</h2>{history.length ? history.map(h => <div className="history-row" key={h.id}><span>{rows.quizzes.find(q => q.id === h.quiz_id)?.title || 'Physics quiz'}</span><b>{h.score}/{h.total_questions}</b><small>{new Date(h.attempted_at).toLocaleDateString()}</small></div>) : <p>No quiz attempts yet. Start a quiz to see your progress here.</p>}</div>
       </div>}
     </main>}
@@ -461,7 +570,22 @@ export default function App() {
       <label>Message<textarea required minLength={10} maxLength={3000} value={contact.message} onChange={e => setContact({ ...contact, message: e.target.value })}/></label>
       <button className="primary full" disabled={busy}>Send message <ArrowUpRight size={17}/></button></form></main>}
 
+    {reviews.length > 0 && <aside className="review-ticker" aria-label="Live student reviews">
+      <div className="review-ticker-title"><span className="ticker-live-dot"/> LIVE REVIEWS</div>
+      <div className="review-ticker-viewport">
+        <div className="review-ticker-track">
+          {[0, 1].map(copy => <div className="review-ticker-group" key={copy} aria-hidden={copy === 1}>
+            {reviews.map(review => <div className="review-ticker-item" key={copy + '-' + review.id}>
+              <div className="ticker-author"><b>{review.display_name}</b><small>{review.class_level ? 'Class ' + review.class_level : 'Student'}</small></div>
+              <span className="ticker-stars" aria-label={review.rating + ' out of 5 stars'}>{'★'.repeat(Number(review.rating))}</span>
+              <span className="ticker-comment">{review.comment}</span>
+            </div>)}
+          </div>)}
+        </div>
+      </div>
+      <button className="review-ticker-link" onClick={() => changeTab('reviews')}>View all</button>
+    </aside>}
     {notice && <div className="notice" role="status" aria-live="polite">{notice}<button onClick={() => setNotice('')} aria-label="Dismiss">×</button></div>}
-    <footer className="footer"><div className="brand footer-brand"><PSBMark small/><span><b>PHYSICS <i>BY SURAJ BHARDWAJ</i></b><small>Concept to Clarity · PSB</small></span></div><div className="footer-links">{['home', ...nav.map(x => x.id)].map(x => <button key={x} onClick={() => changeTab(x as Tab)}>{x === 'home' ? 'Home' : x === 'about' ? 'About' : x === 'contact' ? 'Contact' : labelFor[x as ContentKey] || x}</button>)}</div><small>© {new Date().getFullYear()} Physics by Suraj Bhardwaj. PSB.</small></footer>
+    <footer className="footer"><div className="brand footer-brand"><PSBMark small/><span><b>PHYSICS <i>BY SURAJ BHARDWAJ</i></b><small>Concept to Clarity · PSB</small></span></div><div className="footer-links">{['home', ...nav.map(x => x.id)].map(x => <button key={x} onClick={() => changeTab(x as Tab)}>{x === 'home' ? 'Home' : x === 'about' ? 'About' : x === 'contact' ? 'Contact' : x === 'reviews' ? 'Reviews' : labelFor[x as ContentKey] || x}</button>)}</div><small>© {new Date().getFullYear()} Physics by Suraj Bhardwaj. PSB.</small></footer>
   </div>
 }
