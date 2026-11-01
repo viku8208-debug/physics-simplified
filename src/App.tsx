@@ -65,7 +65,7 @@ export default function App() {
   const [shareFileUrl, setShareFileUrl] = useState('')
   const [shareFileName, setShareFileName] = useState('')
   const [shareFileType, setShareFileType] = useState('')
-  const resourceShareCode = window.location.pathname.match(/^\\/r\\/(psb-[A-Za-z0-9_-]{16})\\/?$/)?.[1] || ''
+  const resourceShareCode = window.location.pathname.match(/^\/r\/(psb-[A-Za-z0-9_-]{16})\/?$/)?.[1] || ''
   const userEmail = session?.user?.email || ''
 
   const notify = (message: string) => setNotice(message)
@@ -362,7 +362,7 @@ export default function App() {
       const response = await fetch(data.signedUrl, { cache: 'no-store' })
       if (!response.ok) throw new Error('Could not download the shared file.')
       const blob = await response.blob()
-      const extension = sharedResource.file_path.match(/\\.[a-z0-9]{2,6}$/i)?.[0] || ''
+      const extension = sharedResource.file_path.match(/\.[a-z0-9]{2,6}$/i)?.[0] || ''
       const safeTitle = String(sharedResource.title || 'PSB-resource')
         .replace(/[^a-z0-9_-]+/gi, '-')
         .replace(/^-+|-+$/g, '')
@@ -525,7 +525,7 @@ export default function App() {
 
   if (resourceShareCode) {
     const isPdf = shareFileName.toLowerCase().endsWith('.pdf') || shareFileType === 'application/pdf'
-    const isImage = shareFileType.startsWith('image/') || /\\.(png|jpe?g)$/i.test(shareFileName)
+    const isImage = shareFileType.startsWith('image/') || /\.(png|jpe?g)$/i.test(shareFileName)
     return <div className="app share-page">
       <main className="share-shell">
         <div className="share-brand">
