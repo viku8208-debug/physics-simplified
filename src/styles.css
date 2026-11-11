@@ -811,3 +811,68 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   .psb-mark-small { border-radius: 50% !important; }
   .splash-screen img { width: min(65vw, 205px) !important; }
 }
+
+/* Latest supplied PSB emblem: transparent artwork, circular presentation everywhere. */
+.psb-mark,
+.psb-mark-small {
+  width: 62px;
+  height: 62px;
+  flex: 0 0 62px;
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50% !important;
+  border: 1px solid rgba(120, 226, 232, .44) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 4px;
+}
+.psb-mark-small { width: 52px; height: 52px; flex-basis: 52px; }
+.psb-logo-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 50%;
+  filter: none;
+}
+.splash-screen img {
+  width: clamp(150px, 32vw, 210px) !important;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  border-radius: 50% !important;
+  border: 1px solid rgba(120, 226, 232, .44);
+  padding: 7px;
+  background: transparent !important;
+  box-shadow: none !important;
+  filter: none !important;
+}
+.teacher-portrait {
+  width: 220px !important;
+  height: 220px !important;
+  min-height: 220px !important;
+  aspect-ratio: 1;
+  justify-self: center;
+  border-radius: 50% !important;
+  overflow: hidden;
+  padding: 7px !important;
+  background: transparent !important;
+  border: 1px solid rgba(120, 226, 232, .44) !important;
+  box-shadow: none !important;
+}
+.teacher-portrait img {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  border-radius: 50% !important;
+  padding: 0 !important;
+}
+@media (max-width: 620px) {
+  .psb-mark { width: 54px; height: 54px; flex-basis: 54px; }
+  .psb-mark-small { width: 48px; height: 48px; flex-basis: 48px; }
+  .teacher-portrait { width: 210px !important; height: 210px !important; min-height: 210px !important; }
+  .splash-screen img { width: min(65vw, 200px) !important; }
+}
