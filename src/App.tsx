@@ -348,21 +348,19 @@ export default function App() {
       notify('This ' + (quiz.assessment_type === 'test' ? 'test' : 'quiz') + ' opens at ' + new Date(quiz.available_from).toLocaleString() + '.')
       return
     }
-    if (quiz.available_until && new Date(quiz.available_until).getTime() <= now) {
-      notify('The attempt window for this assessment has closed.')
-      return
-    }
     setBusy(true); setQuizResult(null)
+    // The server first resumes an existing attempt (even if new starts have since closed),
+    // or creates a fresh timed attempt only while the scheduled window is open.
+    const { data: attempt, error: attemptError } = await supabase.rpc('start_quiz_attempt', { p_quiz_id: quiz.id })
+    if (attemptError || !attempt?.attempt_id) { setBusy(false); return notify(attemptError?.message || 'Could not start this assessment.') }
+
     const { data: questions, error: questionError } = await supabase.from('quiz_questions')
       .select('id,prompt,options,sort_order')
       .eq('quiz_id', quiz.id)
       .order('sort_order', { ascending: true })
-    if (questionError) { setBusy(false); return notify(questionError.message) }
-    if (!questions?.length) { setBusy(false); return notify('This assessment is not ready yet. Please ask Suraj Sir to add questions.') }
-
-    const { data: attempt, error: attemptError } = await supabase.rpc('start_quiz_attempt', { p_quiz_id: quiz.id })
     setBusy(false)
-    if (attemptError || !attempt?.attempt_id) return notify(attemptError?.message || 'Could not start this assessment.')
+    if (questionError) return notify(questionError.message)
+    if (!questions?.length) return notify('This assessment is not ready yet. Please ask Suraj Sir to add questions.')
 
     const restoredAnswers: Record<string, number> = {}
     if (Array.isArray(attempt.answers)) {
