@@ -1011,8 +1011,8 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   backface-visibility: hidden;
   transform-style: preserve-3d;
   box-shadow: 0 5px 22px rgba(0,0,0,.32);
-  animation-duration: 560ms;
-  animation-timing-function: cubic-bezier(.2,.72,.2,1);
+  animation-duration: 1150ms;
+  animation-timing-function: cubic-bezier(.36,.04,.18,1);
   animation-fill-mode: both;
 }
 .psb-pdf-page-flip::after {
@@ -1049,4 +1049,92 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 }
 @media (prefers-reduced-motion: reduce) {
   .psb-pdf-page-flip { animation: none !important; display: none !important; }
+}
+
+/* Slower, softer page-turn transition with a more natural paper hinge. */
+.psb-pdf-page-flip {
+  animation-duration: 1150ms !important;
+  animation-timing-function: cubic-bezier(.36,.04,.18,1) !important;
+  will-change: transform, filter;
+  box-shadow: 0 8px 28px rgba(0,0,0,.28), inset 0 0 18px rgba(0,0,0,.08);
+}
+.psb-pdf-page-flip::after {
+  background: linear-gradient(90deg, rgba(0,0,0,.24), rgba(0,0,0,.03) 12%, transparent 38%, rgba(0,0,0,.04) 72%, rgba(0,0,0,.18));
+}
+@keyframes psb-page-turn-forward {
+  0% { transform: translateX(-50%) rotateY(0deg); filter: brightness(1); }
+  22% { filter: brightness(.96); }
+  55% { filter: brightness(.82); }
+  82% { filter: brightness(.88); }
+  100% { transform: translateX(-50%) rotateY(-178deg); filter: brightness(.94); }
+}
+@keyframes psb-page-turn-backward {
+  0% { transform: translateX(-50%) rotateY(0deg); filter: brightness(1); }
+  22% { filter: brightness(.96); }
+  55% { filter: brightness(.82); }
+  82% { filter: brightness(.88); }
+  100% { transform: translateX(-50%) rotateY(178deg); filter: brightness(.94); }
+}
+
+/* Quiz/test scheduling and timed-attempt interface. */
+.quiz-schedule-note {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #93e9ec !important;
+  font-size: 12px !important;
+  line-height: 1.55;
+  margin: 12px 0 4px !important;
+}
+.quiz-countdown {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(120,226,232,.36);
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: rgba(45,178,190,.12);
+  color: #baf7f5;
+  font: 800 15px/1 Manrope, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: .04em;
+  box-shadow: 0 0 20px rgba(63,205,207,.08);
+}
+.quiz-countdown.is-urgent {
+  color: #ffd1a6;
+  border-color: rgba(255,163,94,.55);
+  background: rgba(255,134,65,.13);
+  animation: quiz-timer-pulse 1.4s ease-in-out infinite;
+}
+@keyframes quiz-timer-pulse {
+  0%,100% { box-shadow: 0 0 0 rgba(255,145,78,0); }
+  50% { box-shadow: 0 0 20px rgba(255,145,78,.18); }
+}
+.quiz-auto-note {
+  margin: 0 0 18px;
+  padding: 11px 14px;
+  border: 1px solid rgba(120,226,232,.16);
+  border-radius: 10px;
+  background: rgba(8,28,49,.52);
+  color: #a8bbd0;
+  font-size: 12px;
+  line-height: 1.65;
+}
+.quiz-topline {
+  flex-wrap: wrap;
+  row-gap: 12px;
+}
+.quiz-panel .quiz-topline > span:first-child {
+  flex: 1 1 160px;
+}
+@media(max-width:620px) {
+  .quiz-countdown { font-size: 13px; padding: 8px 11px; }
+  .quiz-panel .quiz-topline { align-items: center; gap: 9px; }
+  .quiz-panel .quiz-topline > span:first-child { flex-basis: 100%; }
+  .quiz-panel .quiz-topline .switch { margin-left: auto; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .quiz-countdown.is-urgent { animation: none !important; }
 }
