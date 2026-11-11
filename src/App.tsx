@@ -641,7 +641,7 @@ export default function App() {
               </div>}
               {sharedKind === 'notes' && sharedResource.content && <article className="share-note-content">{sharedResource.content}</article>}
               {shareFileUrl && <div className="share-file-area">
-                {isPdf && <PdfPreview url={shareFileUrl} title={sharedResource.title} />}
+                {isPdf && <PdfPreview url={shareFileUrl} title={sharedResource.title} cacheKey={sharedResource.file_path || sharedResource.external_url || sharedResource.title} />}
                 {isImage && <img className="share-image-preview" src={shareFileUrl} alt={sharedResource.title} />}
                 {!isPdf && !isImage && <div className="share-preview-message"><FileText size={24}/><b>Preview not available for this file type</b><p>Please ask the teacher for a PDF version so it can be viewed here without a download button.</p></div>}
               </div>}
@@ -836,7 +836,7 @@ export default function App() {
             : activeMaterial._key === 'videos' && materialUrl
               ? <div className="share-viewer-frame">{isDirectVideoUrl(materialUrl) ? <video src={materialUrl} controls controlsList="nodownload noplaybackrate" disablePictureInPicture playsInline/> : <iframe src={getVideoEmbedUrl(materialUrl)} title={activeMaterial.title + ' video'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"/>}</div>
               : materialUrl && /\.pdf(?:$|[?#])/i.test(activeMaterial.file_path || materialUrl)
-                ? <PdfPreview url={materialUrl} title={activeMaterial.title} />
+                ? <PdfPreview url={materialUrl} title={activeMaterial.title} cacheKey={activeMaterial.file_path || activeMaterial.external_url || activeMaterial.id || activeMaterial.title} />
                 : materialUrl && /\.(png|jpe?g|webp|gif)(?:$|[?#])/i.test(activeMaterial.file_path || materialUrl)
                   ? <img className="share-image-preview" src={materialUrl} alt={activeMaterial.title}/>
                   : materialUrl && activeMaterial.file_path
