@@ -343,11 +343,6 @@ export default function App() {
   const startQuiz = async (quiz: Row) => {
     if (!session?.user) { notify('Please sign in before starting a quiz or test.'); setTab('account'); return }
     if (!supabase) return
-    const now = Date.now()
-    if (quiz.available_from && new Date(quiz.available_from).getTime() > now) {
-      notify('This ' + (quiz.assessment_type === 'test' ? 'test' : 'quiz') + ' opens at ' + new Date(quiz.available_from).toLocaleString() + '.')
-      return
-    }
     setBusy(true); setQuizResult(null)
     // The server first resumes an existing attempt (even if new starts have since closed),
     // or creates a fresh timed attempt only while the scheduled window is open.
@@ -441,7 +436,8 @@ export default function App() {
     const timer = window.setInterval(updateTimer, 250)
     return () => window.clearInterval(timer)
   }, [activeQuiz?.id, quizAttempt?.attempt_id])
-  const leaveQuiz = () => {
+  const leaveQuiz = async () => {
+    await saveAnswersChainRef.current.catch(() => undefined)
     setActiveQuiz(null)
     setQuizQuestions([])
     setQuizResult(null)
