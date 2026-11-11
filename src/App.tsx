@@ -19,7 +19,7 @@ const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.
 
 function PSBMark({ small = false }: { small?: boolean }) {
   return <span className={small ? 'psb-mark psb-mark-small' : 'psb-mark'} aria-label="PSB logo">
-    <img className="psb-logo-image" src="/psb-logo-exact.svg" alt="" />
+    <img className="psb-logo-image" src="/psb-logo.svg" alt="" />
   </span>
 }
 function getVideoEmbedUrl(raw: string) {
@@ -658,7 +658,7 @@ export default function App() {
 
   return <div className="app">
     <div className={showSplash ? 'splash-screen is-visible' : 'splash-screen is-hidden'} aria-hidden={!showSplash}>
-      <img src="/psb-logo-exact.svg" alt="PSB logo" />
+      <img src="/psb-logo.svg" alt="PSB logo" />
       <b>PHYSICS BY SURAJ BHARDWAJ</b>
       <span>Concept to Clarity</span>
     </div>
