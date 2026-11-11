@@ -955,3 +955,98 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   .psb-pdf-toolbar .secondary { min-width: 32px; min-height: 32px; }
   .psb-pdf-canvas-wrap { min-height: 180px; padding: 6px; }
 }
+
+/* PDF cache-aware navigation and realistic 3D page-turn transition. */
+.psb-pdf-goto {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  white-space: nowrap;
+  color: #cfdaeb;
+  font-size: 12px;
+}
+.psb-pdf-goto input {
+  width: 66px;
+  min-width: 66px;
+  height: 35px;
+  padding: 5px 7px;
+  border: 1px solid rgba(120,226,232,.28);
+  border-radius: 8px;
+  background: #071326;
+  color: #f2f7ff;
+  font: 700 13px Manrope, sans-serif;
+  text-align: center;
+  outline: none;
+}
+.psb-pdf-goto input:focus {
+  border-color: #78e2e8;
+  box-shadow: 0 0 0 3px rgba(120,226,232,.12);
+}
+.psb-pdf-goto button { min-width: 38px !important; }
+.psb-pdf-page-stage {
+  position: relative;
+  width: 100%;
+  min-height: 220px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  perspective: 1800px;
+  transform-style: preserve-3d;
+}
+.psb-pdf-page-stage canvas {
+  position: relative;
+  z-index: 1;
+}
+.psb-pdf-page-flip {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 50%;
+  max-width: 100%;
+  pointer-events: none;
+  background-color: #fff;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  box-shadow: 0 5px 22px rgba(0,0,0,.32);
+  animation-duration: 560ms;
+  animation-timing-function: cubic-bezier(.2,.72,.2,1);
+  animation-fill-mode: both;
+}
+.psb-pdf-page-flip::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(0,0,0,.20), transparent 13%, transparent 82%, rgba(0,0,0,.12));
+}
+.psb-pdf-page-flip.forward {
+  transform-origin: left center;
+  animation-name: psb-page-turn-forward;
+}
+.psb-pdf-page-flip.backward {
+  transform-origin: right center;
+  animation-name: psb-page-turn-backward;
+}
+@keyframes psb-page-turn-forward {
+  0% { transform: translateX(-50%) rotateY(0deg); filter: brightness(1); }
+  45% { filter: brightness(.82); }
+  100% { transform: translateX(-50%) rotateY(-178deg); filter: brightness(.92); }
+}
+@keyframes psb-page-turn-backward {
+  0% { transform: translateX(-50%) rotateY(0deg); filter: brightness(1); }
+  45% { filter: brightness(.82); }
+  100% { transform: translateX(-50%) rotateY(178deg); filter: brightness(.92); }
+}
+@media (max-width: 620px) {
+  .psb-pdf-toolbar { justify-content: center; }
+  .psb-pdf-pages { width: 100%; justify-content: center; }
+  .psb-pdf-zoom { width: 100%; }
+  .psb-pdf-goto { font-size: 11px; gap: 5px; }
+  .psb-pdf-goto input { width: 58px; min-width: 58px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .psb-pdf-page-flip { animation: none !important; display: none !important; }
+}
