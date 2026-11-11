@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ChangeEvent } from 'react'
 import { supabase } from './lib/supabase'
-import { Atom, BookOpen, Video, FileText, ClipboardList, LogIn, LogOut, Menu, X, ArrowUpRight, ShieldCheck, GraduationCap, Mail, Lock, Plus, RefreshCw, Upload, Trash2, Pencil, Check, CircleHelp, Trophy, UserRound, MessageSquare, Eye, EyeOff, RotateCcw, Download, Play, Clock3, Sparkles, Share2 } from 'lucide-react'
+import { Atom, BookOpen, Video, FileText, ClipboardList, LogIn, LogOut, Menu, X, ArrowUpRight, ShieldCheck, GraduationCap, Mail, Lock, Plus, RefreshCw, Upload, Trash2, Pencil, Check, CircleHelp, Trophy, UserRound, MessageSquare, Eye, EyeOff, RotateCcw, Play, Clock3, Sparkles, Share2 } from 'lucide-react'
 
 type Tab = 'home' | 'notes' | 'videos' | 'resources' | 'quizzes' | 'about' | 'contact' | 'reviews' | 'account' | 'admin'
 type Row = Record<string, any>
