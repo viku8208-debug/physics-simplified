@@ -98,9 +98,6 @@ export default function PdfPreview({ url, title }: PdfPreviewProps) {
         const fitScale = Math.min(1.5, availableWidth / originalViewport.width)
         const viewport = page.getViewport({ scale: fitScale * zoom })
         const outputScale = Math.min(window.devicePixelRatio || 1, 2)
-        const context = canvas.getContext('2d', { alpha: false })
-        if (!context) throw new Error('Your browser could not prepare the PDF canvas.')
-
         canvas.width = Math.ceil(viewport.width * outputScale)
         canvas.height = Math.ceil(viewport.height * outputScale)
         canvas.style.width = Math.floor(viewport.width) + 'px'
@@ -108,7 +105,7 @@ export default function PdfPreview({ url, title }: PdfPreviewProps) {
         const transform: [number, number, number, number, number, number] = [
           outputScale, 0, 0, outputScale, 0, 0
         ]
-        const renderTask = page.render({ canvas, canvasContext: context, viewport, transform })
+        const renderTask = page.render({ canvas, viewport, transform })
         renderTaskRef.current = renderTask
         await renderTask.promise
       } catch (reason) {
