@@ -11,6 +11,38 @@
     {
       "source": "/s/:code",
       "destination": "/"
+    },
+    {
+      "source": "/notes",
+      "destination": "/"
+    },
+    {
+      "source": "/videos",
+      "destination": "/"
+    },
+    {
+      "source": "/resources",
+      "destination": "/"
+    },
+    {
+      "source": "/quizzes",
+      "destination": "/"
+    },
+    {
+      "source": "/about",
+      "destination": "/"
+    },
+    {
+      "source": "/contact",
+      "destination": "/"
+    },
+    {
+      "source": "/reviews",
+      "destination": "/"
+    },
+    {
+      "source": "/account",
+      "destination": "/"
     }
   ]
 }
