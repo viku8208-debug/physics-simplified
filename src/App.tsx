@@ -626,9 +626,26 @@ export default function App() {
     if (!supabase || !staff || !editing) return
     setBusy(true)
     const table = editing.table as string
-    const { error } = await supabase.from(table).update({
-      title: editing.title, description: editing.description, is_published: editing.is_published
-    }).eq('id', editing.id)
+    const updates: Row = {
+      title: editing.title,
+      description: editing.description,
+      is_published: editing.is_published
+    }
+    if (table === 'quizzes') {
+      const availableFrom = editing.available_from ? new Date(editing.available_from).toISOString() : null
+      const availableUntil = editing.available_until ? new Date(editing.available_until).toISOString() : null
+      if (!editing.duration_minutes || Number(editing.duration_minutes) < 1 || Number(editing.duration_minutes) > 240) {
+        setBusy(false); return notify('Set a test duration between 1 and 240 minutes.')
+      }
+      if (availableFrom && availableUntil && new Date(availableUntil) <= new Date(availableFrom)) {
+        setBusy(false); return notify('The closing time must be after the opening time.')
+      }
+      updates.duration_minutes = Number(editing.duration_minutes)
+      updates.assessment_type = editing.assessment_type || 'quiz'
+      updates.available_from = availableFrom
+      updates.available_until = availableUntil
+    }
+    const { error } = await supabase.from(table).update(updates).eq('id', editing.id)
     setBusy(false)
     if (error) notify(error.message)
     else { setEditing(null); await loadContent(); notify('Content updated.') }
@@ -917,8 +934,18 @@ export default function App() {
           </div>
         </div>
         <section className="manager-section"><div className="section-head"><div><span className="eyebrow">CONTENT CONTROL</span><h2>Manage published material</h2></div><button className="refresh" onClick={loadContent}><RefreshCw size={14}/> Refresh</button></div>
-          {contentRows.length ? <div className="manage-list">{contentRows.map(item => <div className="manage-item" key={item.id}><div><span className="card-meta">{labelFor[item._key as ContentKey]} · {item.is_published ? 'PUBLISHED' : 'DRAFT'}</span><b>{item.title}</b><small>{item.description || item.topic || 'No description'}</small></div><div className="manage-actions"><button title="Edit" onClick={() => setEditing({ id: item.id, table: item._table, title: item.title, description: item.description || '', is_published: item.is_published })}><Pencil size={15}/></button><button title={item.is_published ? 'Unpublish' : 'Publish'} onClick={() => togglePublished(item._table, item)}><Eye size={15}/></button><button className="danger" title="Delete" onClick={() => removeContent(item._table, item.id)}><Trash2 size={15}/></button></div></div>)}</div> : <div className="empty">No content has been published yet.</div>}
-          {editing && <form className="form-card edit-form" onSubmit={updateContent}><h3>Edit item</h3><label>Title<input required value={editing.title} onChange={e => setEditing({ ...editing, title: e.target.value })}/></label><label>Description<textarea value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })}/></label><label className="check-line"><input type="checkbox" checked={editing.is_published} onChange={e => setEditing({ ...editing, is_published: e.target.checked })}/> Visible to students</label><div className="row-actions"><button type="button" className="secondary" onClick={() => setEditing(null)}>Cancel</button><button className="primary" disabled={busy}>Save changes</button></div></form>}
+          {contentRows.length ? <div className="manage-list">{contentRows.map(item => <div className="manage-item" key={item.id}><div><span className="card-meta">{labelFor[item._key as ContentKey]} · {item.is_published ? 'PUBLISHED' : 'DRAFT'}</span><b>{item.title}</b><small>{item.description || item.topic || 'No description'}</small></div><div className="manage-actions"><button title="Edit" onClick={() => setEditing({
+              id: item.id, table: item._table, title: item.title, description: item.description || '', is_published: item.is_published,
+              duration_minutes: item.duration_minutes || 20, assessment_type: item.assessment_type || 'quiz',
+              available_from: item.available_from ? new Date(new Date(item.available_from).getTime() - new Date(item.available_from).getTimezoneOffset() * 60000).toISOString().slice(0,16) : '',
+              available_until: item.available_until ? new Date(new Date(item.available_until).getTime() - new Date(item.available_until).getTimezoneOffset() * 60000).toISOString().slice(0,16) : ''
+            })}><Pencil size={15}/></button><button title={item.is_published ? 'Unpublish' : 'Publish'} onClick={() => togglePublished(item._table, item)}><Eye size={15}/></button><button className="danger" title="Delete" onClick={() => removeContent(item._table, item.id)}><Trash2 size={15}/></button></div></div>)}</div> : <div className="empty">No content has been published yet.</div>}
+          {editing && <form className="form-card edit-form" onSubmit={updateContent}><h3>Edit item</h3><label>Title<input required value={editing.title} onChange={e => setEditing({ ...editing, title: e.target.value })}/></label><label>Description<textarea value={editing.description} onChange={e => setEditing({ ...editing, description: e.target.value })}/></label>
+            {editing.table === 'quizzes' && <>
+              <div className="form-row"><label>Assessment type<select value={editing.assessment_type || 'quiz'} onChange={e => setEditing({ ...editing, assessment_type: e.target.value })}><option value="quiz">Practice quiz</option><option value="test">Timed test / exam</option></select></label><label>Time limit (minutes)<input required type="number" min="1" max="240" value={editing.duration_minutes} onChange={e => setEditing({ ...editing, duration_minutes: e.target.value })}/></label></div>
+              <div className="form-row"><label>Opens at<input type="datetime-local" value={editing.available_from || ''} onChange={e => setEditing({ ...editing, available_from: e.target.value })}/></label><label>Stop new attempts at<input type="datetime-local" value={editing.available_until || ''} onChange={e => setEditing({ ...editing, available_until: e.target.value })}/></label></div>
+            </>}
+            <label className="check-line"><input type="checkbox" checked={editing.is_published} onChange={e => setEditing({ ...editing, is_published: e.target.checked })}/> Visible to students</label><div className="row-actions"><button type="button" className="secondary" onClick={() => setEditing(null)}>Cancel</button><button className="primary" disabled={busy}>Save changes</button></div></form>}
         </section>
         <section className="manager-section"><div className="section-head"><div><span className="eyebrow">STUDENT SUPPORT</span><h2>Contact inbox</h2></div><span className="tiny-meta">{messages.length} messages</span></div>
           {messages.length ? <div className="inbox-list">{messages.map(m => <article className="inbox-item" key={m.id}><div className="inbox-title"><b>{m.subject}</b><span className={m.status === 'new' ? 'status-new' : 'status-done'}>{m.status}</span></div><p>{m.message}</p><small>{m.name} · {m.email} · {new Date(m.created_at).toLocaleString()}</small><div className="row-actions"><a className="text-link" href={'mailto:' + encodeURIComponent(m.email) + '?subject=' + encodeURIComponent('Re: ' + m.subject)}><Mail size={14}/> Reply by email</a>{m.status === 'new' && <button className="switch" onClick={() => setMessageStatus(m, 'resolved')}>Mark resolved <Check size={14}/></button>}</div></article>)}</div> : <div className="empty">No student messages yet.</div>}
