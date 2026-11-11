@@ -15,6 +15,58 @@ const nav: { id: Tab; label: string }[] = [
   { id: 'about', label: 'About Suraj Sir' }, { id: 'contact', label: 'Contact' },
   { id: 'reviews', label: 'Reviews' }
 ]
+const tabPath: Record<Tab, string> = {
+  home: '/', notes: '/notes', videos: '/videos', resources: '/resources',
+  quizzes: '/quizzes', about: '/about', contact: '/contact', reviews: '/reviews',
+  account: '/account', admin: '/admin.html'
+}
+const tabFromPath = (pathname: string): Tab => {
+  const path = pathname.toLowerCase().replace(/\\/+$/, '') || '/'
+  const entry = (Object.entries(tabPath) as [Tab, string][]).find(([, route]) => route === path)
+  return entry?.[0] || 'home'
+}
+const seoByTab: Record<Tab, { title: string; description: string }> = {
+  home: {
+    title: 'Physics by Suraj Bhardwaj | Concept to Clarity',
+    description: 'Learn Physics with Suraj Bhardwaj. Explore concept-based lessons, notes, worksheets, video lessons, study resources and quizzes for school and competitive-exam students.'
+  },
+  notes: {
+    title: 'Physics Notes & Worksheets | Physics by Suraj Bhardwaj',
+    description: 'Explore Physics notes and worksheets shared by Suraj Bhardwaj, with topic-focused study material to support clear concepts and exam preparation.'
+  },
+  videos: {
+    title: 'Physics Video Lessons | Physics by Suraj Bhardwaj',
+    description: 'Watch Physics video lessons by Suraj Bhardwaj and strengthen your understanding with clear, concept-based explanations.'
+  },
+  resources: {
+    title: 'Physics Study Resources | Physics by Suraj Bhardwaj',
+    description: 'Find Physics study resources and learning materials shared by Suraj Bhardwaj for school and competitive-exam preparation.'
+  },
+  quizzes: {
+    title: 'Physics Quizzes & Timed Tests | Physics by Suraj Bhardwaj',
+    description: 'Practise Physics with quizzes and timed tests from Suraj Bhardwaj. Review topics, test understanding and build exam confidence.'
+  },
+  about: {
+    title: 'About Suraj Bhardwaj | Physics Teacher & Science Educator',
+    description: 'Meet Suraj Bhardwaj, a Physics teacher and science educator focused on conceptual clarity, logical thinking and activity-based learning.'
+  },
+  contact: {
+    title: 'Contact Suraj Bhardwaj | Physics by Suraj Bhardwaj',
+    description: 'Contact Suraj Bhardwaj about Physics classes, learning resources, study material or questions about the PSB learning website.'
+  },
+  reviews: {
+    title: 'Student Reviews | Physics by Suraj Bhardwaj',
+    description: 'Read student reviews about learning Physics with Suraj Bhardwaj and the PSB learning resources.'
+  },
+  account: {
+    title: 'Student Account | Physics by Suraj Bhardwaj',
+    description: 'Sign in or create your student account to access learning material and quizzes on Physics by Suraj Bhardwaj.'
+  },
+  admin: {
+    title: 'Teacher Admin | Physics by Suraj Bhardwaj',
+    description: 'Secure teacher workspace for managing published notes, videos, resources and quizzes on Physics by Suraj Bhardwaj.'
+  }
+}
 const emptyForm = { type: 'note', title: '', description: '', subject: 'Physics', grade_label: 'Class 12', topic: '', url: '', duration: '20', assessment_type: 'quiz', available_from: '', available_until: '' }
 const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation', 'image/png', 'image/jpeg']
 
@@ -49,7 +101,7 @@ function isDirectVideoUrl(raw: string) {
 }
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>(() => window.location.pathname.toLowerCase().endsWith('/admin.html') ? 'admin' : 'home')
+  const [tab, setTab] = useState<Tab>(() => tabFromPath(window.location.pathname))
   const [mobile, setMobile] = useState(false)
   const [quizClock, setQuizClock] = useState(Date.now())
   const [session, setSession] = useState<any>(null)
@@ -107,6 +159,15 @@ export default function App() {
   const userEmail = session?.user?.email || ''
 
   const notify = (message: string) => setNotice(message)
+  const changeTab = (t: Tab) => {
+    const keepAdminPath = t === 'admin' || (t === 'account' && window.location.pathname.toLowerCase().endsWith('/admin.html'))
+    const nextPath = keepAdminPath ? '/admin.html' : tabPath[t]
+    if (window.location.pathname !== nextPath) window.history.pushState({}, '', nextPath)
+    setTab(t)
+    setMobile(false)
+    setNotice('')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
   const refreshAuth = async () => {
     if (!supabase) return
     const { data, error } = await supabase.auth.getSession()
@@ -170,11 +231,50 @@ export default function App() {
   }
 
   useEffect(() => {
+    const handlePopState = () => {
+      setTab(tabFromPath(window.location.pathname))
+      setMobile(false)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
+  useEffect(() => {
+    const seo = seoByTab[tab]
+    const setMeta = (attribute: 'name' | 'property', key: string, value: string) => {
+      let element = document.head.querySelector<HTMLMetaElement>(`meta[${attribute}="${key}"]`)
+      if (!element) {
+        element = document.createElement('meta')
+        element.setAttribute(attribute, key)
+        document.head.appendChild(element)
+      }
+      element.content = value
+    }
+    const privatePage = tab === 'account' || tab === 'admin' || Boolean(resourceShareCode || contentShareCode)
+    const canonicalUrl = privatePage
+      ? 'https://physicsbysurajbhardwaj.in/'
+      : `https://physicsbysurajbhardwaj.in${tabPath[tab]}`
+    document.title = seo.title
+    setMeta('name', 'description', seo.description)
+    setMeta('name', 'robots', privatePage ? 'noindex, nofollow' : 'index, follow, max-image-preview:large')
+    setMeta('property', 'og:title', seo.title)
+    setMeta('property', 'og:description', seo.description)
+    setMeta('property', 'og:url', canonicalUrl)
+    setMeta('name', 'twitter:title', seo.title)
+    setMeta('name', 'twitter:description', seo.description)
+    let canonical = document.head.querySelector<HTMLLinkElement>('link[rel="canonical"]')
+    if (!canonical) {
+      canonical = document.createElement('link')
+      canonical.rel = 'canonical'
+      document.head.appendChild(canonical)
+    }
+    canonical.href = canonicalUrl
+  }, [tab, resourceShareCode, contentShareCode])
+  useEffect(() => {
     void refreshAuth()
     void loadContent()
     if (!supabase) return
     const { data } = supabase.auth.onAuthStateChange((event, s) => {
-      if (event === 'PASSWORD_RECOVERY') { setRecovering(true); setTab('account') }
+      if (event === 'PASSWORD_RECOVERY') { setRecovering(true); changeTab('account') }
       setSession(s)
       const allowed = ['teacher', 'admin'].includes(s?.user?.app_metadata?.role || '')
       setStaff(allowed)
@@ -276,7 +376,7 @@ export default function App() {
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
     setBusy(false)
     if (error) notify(error.message)
-    else { await refreshAuth(); await loadContent(); notify('You are signed in.'); setTab(window.location.pathname.toLowerCase().endsWith('/admin.html') ? 'admin' : 'home') }
+    else { await refreshAuth(); await loadContent(); notify('You are signed in.'); changeTab(window.location.pathname.toLowerCase().endsWith('/admin.html') ? 'admin' : 'home') }
   }
   const signUp = async (e: FormEvent) => {
     e.preventDefault()
@@ -328,7 +428,7 @@ export default function App() {
     else {
       await supabase.auth.refreshSession()
       await refreshAuth()
-      setStaff(true); await loadTeacherData(); setTab('admin')
+      setStaff(true); await loadTeacherData(); changeTab('admin')
       notify('Teacher access activated securely.')
     }
     setBusy(false)
@@ -336,12 +436,12 @@ export default function App() {
   const signOut = async () => {
     if (!supabase) return
     const { error } = await supabase.auth.signOut()
-    setStaff(false); setSession(null); setTab('home')
+    setStaff(false); setSession(null); changeTab('home')
     notify(error ? error.message : 'You have signed out.')
   }
 
   const startQuiz = async (quiz: Row) => {
-    if (!session?.user) { notify('Please sign in before starting a quiz or test.'); setTab('account'); return }
+    if (!session?.user) { notify('Please sign in before starting a quiz or test.'); changeTab('account'); return }
     if (!supabase) return
     setBusy(true); setQuizResult(null)
     // The server first resumes an existing attempt (even if new starts have since closed),
@@ -373,7 +473,7 @@ export default function App() {
     setQuizTimeLeft(Math.max(0, Math.ceil((new Date(attempt.deadline_at).getTime() - Date.now()) / 1000)))
     setActiveQuiz(quiz)
     setQuizQuestions(questions)
-    setTab('quizzes')
+    changeTab('quizzes')
     window.scrollTo({ top: 0, behavior: 'smooth' })
     if (attempt.resumed) notify('Your previous attempt has been resumed. The timer continued while you were away.')
   }
@@ -701,7 +801,6 @@ export default function App() {
       notify('Thank you. Your verified review is now live.')
     }
   }
-  const changeTab = (t: Tab) => { const keepAdminPath = t === 'admin' || (t === 'account' && window.location.pathname.toLowerCase().endsWith('/admin.html')); setTab(t); window.history.replaceState({}, '', keepAdminPath ? '/admin.html' : '/'); setMobile(false); setNotice(''); window.scrollTo({ top: 0, behavior: 'smooth' }) }
   const contentRows = (Object.keys(tableFor) as ContentKey[]).flatMap(key => rows[key].map(item => ({ ...item, _key: key, _table: tableFor[key] })))
   const publishedCount = (key: ContentKey) => rows[key].filter(item => item.is_published).length
 
