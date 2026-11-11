@@ -51,6 +51,7 @@ function isDirectVideoUrl(raw: string) {
 export default function App() {
   const [tab, setTab] = useState<Tab>(() => window.location.pathname.toLowerCase().endsWith('/admin.html') ? 'admin' : 'home')
   const [mobile, setMobile] = useState(false)
+  const [quizClock, setQuizClock] = useState(Date.now())
   const [session, setSession] = useState<any>(null)
   const [staff, setStaff] = useState(false)
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
@@ -262,6 +263,11 @@ export default function App() {
     else setHasReviewed(false)
   }, [session?.user?.id])
   const count = useMemo(() => Object.values(rows).reduce((n, list) => n + list.filter(item => item.is_published).length, 0), [rows])
+  useEffect(() => {
+    if (tab !== 'quizzes') return
+    const timer = window.setInterval(() => setQuizClock(Date.now()), 1000)
+    return () => window.clearInterval(timer)
+  }, [tab])
 
   const signIn = async (e: FormEvent) => {
     e.preventDefault()
@@ -611,6 +617,7 @@ export default function App() {
     setBusy(true)
     const { count: total, error: countError } = await supabase.from('quiz_questions').select('id', { count: 'exact', head: true }).eq('quiz_id', selectedQuizId)
     if (countError || !total) { setBusy(false); return notify(countError?.message || 'Add at least one question before publishing.') }
+    if (total > 100) { setBusy(false); return notify('A quiz or test can contain up to 100 questions.') }
     const { error } = await supabase.from('quizzes').update({ is_published: true }).eq('id', selectedQuizId)
     setBusy(false)
     if (error) notify(error.message)
@@ -688,10 +695,10 @@ export default function App() {
   const publishedCount = (key: ContentKey) => rows[key].filter(item => item.is_published).length
 
   const cards = (items: Row[], key: ContentKey) => {
-    const visibleItems = items.filter(item => item.is_published && (key !== 'quizzes' || !item.available_until || new Date(item.available_until).getTime() > Date.now()))
+    const visibleItems = items.filter(item => item.is_published && (key !== 'quizzes' || !item.available_until || new Date(item.available_until).getTime() > quizClock))
     return visibleItems.length
       ? <div className="grid">{visibleItems.map(item => {
-        const scheduled = key === 'quizzes' && item.available_from && new Date(item.available_from).getTime() > Date.now()
+        const scheduled = key === 'quizzes' && item.available_from && new Date(item.available_from).getTime() > quizClock
         const assessmentLabel = item.assessment_type === 'test' ? 'Timed test' : 'Practice quiz'
         return <article className="content-card" key={item.id}>
           <div className="card-icon">{key === 'videos' ? <Video/> : key === 'quizzes' ? <ClipboardList/> : key === 'resources' ? <FileText/> : <BookOpen/>}</div>
