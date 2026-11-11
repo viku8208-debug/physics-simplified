@@ -7,6 +7,10 @@
     {
       "source": "/r/:code",
       "destination": "/"
+    },
+    {
+      "source": "/s/:code",
+      "destination": "/"
     }
   ]
 }
