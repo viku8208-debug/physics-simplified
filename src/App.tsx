@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { FormEvent, ChangeEvent } from 'react'
 import { supabase } from './lib/supabase'
+import PdfPreview from './PdfPreview'
 import { Atom, BookOpen, Video, FileText, ClipboardList, LogIn, LogOut, Menu, X, ArrowUpRight, ShieldCheck, GraduationCap, Mail, Lock, Plus, RefreshCw, Upload, Trash2, Pencil, Check, CircleHelp, Trophy, UserRound, MessageSquare, Eye, EyeOff, RotateCcw, Play, Clock3, Sparkles, Share2 } from 'lucide-react'
 
 type Tab = 'home' | 'notes' | 'videos' | 'resources' | 'quizzes' | 'about' | 'contact' | 'reviews' | 'account' | 'admin'
@@ -365,7 +366,7 @@ export default function App() {
     if (item.file_path) {
       if (!supabase) return setMaterialError('The learning material service is unavailable.')
       setMaterialLoading(true)
-      const { data, error } = await supabase.storage.from('study-materials').createSignedUrl(item.file_path, 300)
+      const { data, error } = await supabase.storage.from('study-materials').createSignedUrl(item.file_path, 3600)
       setMaterialLoading(false)
       if (error || !data?.signedUrl) return setMaterialError(error?.message || 'Could not prepare this material for viewing.')
       setMaterialUrl(data.signedUrl)
@@ -426,7 +427,7 @@ export default function App() {
       try {
         const { data, error } = await supabase.storage
           .from('study-materials')
-          .createSignedUrl(sharedResource.file_path, 300)
+          .createSignedUrl(sharedResource.file_path, 3600)
         if (error || !data?.signedUrl) throw new Error(error?.message || 'Could not prepare the file for viewing.')
         const extension = sharedResource.file_path.match(/\.[a-z0-9]{2,6}$/i)?.[0] || ''
         const safeTitle = String(sharedResource.title || 'PSB-material')
@@ -640,7 +641,7 @@ export default function App() {
               </div>}
               {sharedKind === 'notes' && sharedResource.content && <article className="share-note-content">{sharedResource.content}</article>}
               {shareFileUrl && <div className="share-file-area">
-                {isPdf && <iframe className="share-file-preview" src={shareFileUrl + '#toolbar=0&navpanes=0&scrollbar=0'} title={sharedResource.title + ' in-site preview'} />}
+                {isPdf && <PdfPreview url={shareFileUrl} title={sharedResource.title} />}
                 {isImage && <img className="share-image-preview" src={shareFileUrl} alt={sharedResource.title} />}
                 {!isPdf && !isImage && <div className="share-preview-message"><FileText size={24}/><b>Preview not available for this file type</b><p>Please ask the teacher for a PDF version so it can be viewed here without a download button.</p></div>}
               </div>}
@@ -835,7 +836,7 @@ export default function App() {
             : activeMaterial._key === 'videos' && materialUrl
               ? <div className="share-viewer-frame">{isDirectVideoUrl(materialUrl) ? <video src={materialUrl} controls controlsList="nodownload noplaybackrate" disablePictureInPicture playsInline/> : <iframe src={getVideoEmbedUrl(materialUrl)} title={activeMaterial.title + ' video'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"/>}</div>
               : materialUrl && /\.pdf(?:$|[?#])/i.test(activeMaterial.file_path || materialUrl)
-                ? <iframe className="share-file-preview" src={materialUrl + '#toolbar=0&navpanes=0&scrollbar=0'} title={activeMaterial.title + ' PDF preview'}/>
+                ? <PdfPreview url={materialUrl} title={activeMaterial.title} />
                 : materialUrl && /\.(png|jpe?g|webp|gif)(?:$|[?#])/i.test(activeMaterial.file_path || materialUrl)
                   ? <img className="share-image-preview" src={materialUrl} alt={activeMaterial.title}/>
                   : materialUrl && activeMaterial.file_path
