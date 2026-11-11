@@ -876,3 +876,82 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   .teacher-portrait { width: 210px !important; height: 210px !important; min-height: 210px !important; }
   .splash-screen img { width: min(65vw, 200px) !important; }
 }
+
+/* Mobile-safe PDF.js page viewer for large chapter notes. */
+.psb-pdf-viewer {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.psb-pdf-toolbar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(120,226,232,.2);
+  border-radius: 10px;
+  background: #0b192e;
+}
+.psb-pdf-pages,
+.psb-pdf-zoom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: #cfdaeb;
+  font-size: 12px;
+}
+.psb-pdf-pages b { color: #fff; }
+.psb-pdf-toolbar .secondary {
+  min-width: 34px;
+  min-height: 34px;
+  padding: 6px 10px;
+}
+.psb-pdf-toolbar button:disabled { opacity: .4; cursor: not-allowed; }
+.psb-pdf-zoom span { min-width: 42px; text-align: center; }
+.psb-pdf-canvas-wrap {
+  width: 100%;
+  min-height: 220px;
+  overflow: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12px;
+  border-radius: 10px;
+  background: #d8e0e9;
+  overscroll-behavior: contain;
+}
+.psb-pdf-canvas-wrap[hidden] { display: none !important; }
+.psb-pdf-canvas-wrap canvas {
+  display: block;
+  flex: 0 0 auto;
+  max-width: 100%;
+  height: auto;
+  background: #fff;
+  box-shadow: 0 4px 18px rgba(0,0,0,.22);
+}
+.psb-pdf-loading {
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #aebed3;
+  font-size: 13px;
+}
+.psb-pdf-viewer .share-preview-message { margin: 4px 0; }
+.psb-pdf-viewer .share-preview-message a {
+  text-decoration: none;
+  color: #b9f3f3;
+}
+@media (max-width: 620px) {
+  .psb-pdf-toolbar { padding: 8px; gap: 8px; }
+  .psb-pdf-pages, .psb-pdf-zoom { gap: 6px; font-size: 11px; }
+  .psb-pdf-toolbar .secondary { min-width: 32px; min-height: 32px; }
+  .psb-pdf-canvas-wrap { min-height: 180px; padding: 6px; }
+}
