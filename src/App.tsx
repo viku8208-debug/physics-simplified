@@ -706,19 +706,21 @@ export default function App() {
   const publishedCount = (key: ContentKey) => rows[key].filter(item => item.is_published).length
 
   const cards = (items: Row[], key: ContentKey) => {
-    const visibleItems = items.filter(item => item.is_published && (key !== 'quizzes' || !item.available_until || new Date(item.available_until).getTime() > quizClock))
+    const visibleItems = items.filter(item => item.is_published)
     return visibleItems.length
       ? <div className="grid">{visibleItems.map(item => {
         const scheduled = key === 'quizzes' && item.available_from && new Date(item.available_from).getTime() > quizClock
+        const closed = key === 'quizzes' && item.available_until && new Date(item.available_until).getTime() <= quizClock
         const assessmentLabel = item.assessment_type === 'test' ? 'Timed test' : 'Practice quiz'
         return <article className="content-card" key={item.id}>
           <div className="card-icon">{key === 'videos' ? <Video/> : key === 'quizzes' ? <ClipboardList/> : key === 'resources' ? <FileText/> : <BookOpen/>}</div>
           <div className="card-meta">{item.grade_label || (item.class_level ? 'Class ' + item.class_level : 'Physics')} · {item.subject || 'Physics'}{key === 'quizzes' ? ' · ' + assessmentLabel.toUpperCase() : ''}</div>
           <h3>{item.title}</h3><p>{item.description || item.topic || 'Learning material from Suraj Bhardwaj.'}</p>
           {scheduled && <p className="quiz-schedule-note"><Clock3 size={14}/> Opens {new Date(item.available_from).toLocaleString()}</p>}
+          {closed && <p className="quiz-schedule-note is-closed">New attempts are closed. Students with an active attempt can still resume.</p>}
           <div className="content-card-actions">
             {key === 'quizzes'
-              ? <button className="text-link" onClick={() => startQuiz(item)} disabled={busy || !!scheduled}><Play size={15}/> {scheduled ? 'Not open yet' : item.assessment_type === 'test' ? 'Start test' : 'Start quiz'} <ArrowUpRight size={15}/></button>
+              ? <button className="text-link" onClick={() => startQuiz(item)} disabled={busy || !!scheduled}><Play size={15}/> {scheduled ? 'Not open yet' : closed ? 'Resume active attempt' : item.assessment_type === 'test' ? 'Start test' : 'Start quiz'} <ArrowUpRight size={15}/></button>
               : <button className="text-link" onClick={() => void openContent(item, key)}>{key === 'videos' ? 'Watch lesson' : 'View material'} <ArrowUpRight size={15}/></button>}
             {key !== 'quizzes' && <button className="text-link resource-share-link" onClick={() => void shareContent(item, key)} disabled={busy}><Share2 size={14}/> Share</button>}
           </div>
