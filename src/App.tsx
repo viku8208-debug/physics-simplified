@@ -21,7 +21,7 @@ const tabPath: Record<Tab, string> = {
   account: '/account', admin: '/admin.html'
 }
 const tabFromPath = (pathname: string): Tab => {
-  const path = pathname.toLowerCase().replace(/\\/+$/, '') || '/'
+  const path = pathname.toLowerCase().replace(/\/+$/, '') || '/'
   const entry = (Object.entries(tabPath) as [Tab, string][]).find(([, route]) => route === path)
   return entry?.[0] || 'home'
 }
