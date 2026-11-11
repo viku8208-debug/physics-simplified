@@ -598,8 +598,19 @@ export default function App() {
     : <div className="empty"><div className="empty-symbol"><BookOpen/></div><h3>New learning material is on its way</h3><p>Suraj Sir will publish verified notes, lessons and resources here. Please check back soon.</p></div>
 
   if (resourceShareCode || contentShareCode) {
-    const isPdf = shareFileName.toLowerCase().endsWith('.pdf') || shareFileType === 'application/pdf'
-    const isImage = shareFileType.startsWith('image/') || /\.(png|jpe?g)$/i.test(shareFileName)
+    const sharedKind = sharedResource?.content_type || 'resources'
+    const isPdf = shareFileType === '.pdf' || shareFileName.toLowerCase().endsWith('.pdf')
+    const isImage = /\.(png|jpe?g|webp|gif)$/i.test(shareFileType || shareFileName)
+    const isDirectVideo = shareVideoUrl ? isDirectVideoUrl(shareVideoUrl) : false
+    const sharedClass = sharedResource?.class_level ? 'Class ' + sharedResource.class_level : sharedResource?.grade_label || 'Physics'
+    const shareThisPage = async () => {
+      const shareData = { title: sharedResource?.title || 'Physics by Suraj Bhardwaj', text: 'Shared learning material · Physics by Suraj Bhardwaj', url: window.location.href }
+      if (navigator.share) {
+        try { await navigator.share(shareData); return } catch (err) { if ((err as Error)?.name === 'AbortError') return }
+      }
+      try { await navigator.clipboard.writeText(window.location.href); notify('Short PSB link copied.') }
+      catch { notify(window.location.href) }
+    }
     return <div className="app share-page">
       <main className="share-shell">
         <div className="share-brand">
@@ -607,33 +618,40 @@ export default function App() {
           <div><b>PHYSICS BY SURAJ BHARDWAJ</b><small>Concept to Clarity · PSB</small></div>
         </div>
         <section className="share-card">
-          {sharePageLoading ? <div className="share-state"><div className="share-spinner" /><h2>Loading resource…</h2><p>Opening a shared PSB learning resource.</p></div>
-            : sharePageError ? <div className="share-state"><h2>Resource unavailable</h2><p>{sharePageError}</p><a className="share-button" href="/">Visit website</a></div>
+          {sharePageLoading ? <div className="share-state"><div className="share-spinner" /><h2>Loading learning material…</h2><p>Opening a shared PSB lesson.</p></div>
+            : sharePageError ? <div className="share-state"><h2>Material unavailable</h2><p>{sharePageError}</p><a className="share-button" href="/">Visit website</a></div>
             : sharedResource ? <>
-              <span className="eyebrow">SHARED STUDY RESOURCE</span>
-              <h1>{sharedResource.title}</h1>
-              <p className="share-description">{sharedResource.description || 'A learning resource shared by Physics by Suraj Bhardwaj.'}</p>
-              <div className="share-meta">
-                <span>{sharedResource.class_level ? 'Class ' + sharedResource.class_level : 'Physics'}</span>
-                <span>{sharedResource.subject || 'Physics'}</span>
-                <span>{sharedResource.resource_type || 'Study material'}</span>
+              <div className="share-card-heading">
+                <span className="eyebrow">SHARED {sharedKind === 'videos' ? 'VIDEO LESSON' : sharedKind === 'notes' ? 'STUDY NOTE' : 'STUDY RESOURCE'}</span>
+                <button className="share-inline-button" onClick={() => void shareThisPage()}><Share2 size={15}/> Share</button>
               </div>
-              {!shareFileUrl && <button className="share-button" onClick={() => void openSharedResource()} disabled={shareFileLoading}>
-                {shareFileLoading ? 'Preparing secure resource…' : sharedResource.file_path ? 'View / download resource' : 'Open external resource'}
-                {!shareFileLoading && <ArrowUpRight size={17}/>}
-              </button>}
-              {shareFileUrl && <div className="share-file-area">
-                <div className="share-file-actions">
-                  <a className="share-button" href={shareFileUrl} download={shareFileName}><Download size={16}/> Download {shareFileName}</a>
-                  <a className="share-secondary" href={shareFileUrl} target="_blank" rel="noreferrer">Open in new tab <ArrowUpRight size={15}/></a>
-                </div>
-                {isPdf && <iframe className="share-file-preview" src={shareFileUrl} title={sharedResource.title + ' preview'} />}
-                {isImage && <img className="share-image-preview" src={shareFileUrl} alt={sharedResource.title} />}
-                {!isPdf && !isImage && <p className="share-download-hint">Your file is ready. Use the Download button above to save it.</p>}
+              <h1>{sharedResource.title}</h1>
+              <p className="share-description">{sharedResource.description || 'Learning material from Physics by Suraj Bhardwaj.'}</p>
+              <div className="share-meta">
+                <span>{sharedClass}</span>
+                <span>{sharedResource.subject || 'Physics'}</span>
+                <span>{sharedResource.resource_type || sharedResource.topic || (sharedKind === 'videos' ? 'Video lesson' : 'Study material')}</span>
+              </div>
+              {shareFileLoading && <div className="share-state"><div className="share-spinner" /><p>Preparing the in-site viewer…</p></div>}
+              {sharedKind === 'videos' && shareVideoUrl && <div className="share-viewer-frame">
+                {isDirectVideo
+                  ? <video src={shareVideoUrl} controls controlsList="nodownload noplaybackrate" disablePictureInPicture playsInline />
+                  : <iframe src={getVideoEmbedUrl(shareVideoUrl)} title={sharedResource.title + ' video'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />}
               </div>}
+              {sharedKind === 'notes' && sharedResource.content && <article className="share-note-content">{sharedResource.content}</article>}
+              {shareFileUrl && <div className="share-file-area">
+                {isPdf && <iframe className="share-file-preview" src={shareFileUrl + '#toolbar=0&navpanes=0&scrollbar=0'} title={sharedResource.title + ' in-site preview'} />}
+                {isImage && <img className="share-image-preview" src={shareFileUrl} alt={sharedResource.title} />}
+                {!isPdf && !isImage && <div className="share-preview-message"><FileText size={24}/><b>Preview not available for this file type</b><p>Please ask the teacher for a PDF version so it can be viewed here without a download button.</p></div>}
+              </div>}
+              {shareExternalUrl && <div className="share-viewer-frame">
+                <iframe src={sharedKind === 'videos' ? getVideoEmbedUrl(shareExternalUrl) : shareExternalUrl} title={sharedResource.title + ' embedded material'} sandbox="allow-scripts allow-same-origin allow-presentation" allowFullScreen referrerPolicy="strict-origin-when-cross-origin" />
+              </div>}
+              {!shareFileLoading && !shareVideoUrl && !shareFileUrl && !shareExternalUrl && !(sharedKind === 'notes' && sharedResource.content) && <div className="share-preview-message"><p>This material does not currently have an online preview.</p></div>}
+              <p className="view-only-note">View-only experience. Download controls are hidden where the file viewer supports it.</p>
             </> : null}
         </section>
-        <footer className="share-footer">A secure, short link from Physics by Suraj Bhardwaj · <a href="/">Open PSB website</a></footer>
+        <footer className="share-footer">A short sharing link from Physics by Suraj Bhardwaj · <a href="/">Open PSB website</a></footer>
       </main>
     </div>
   }
@@ -802,6 +820,35 @@ export default function App() {
       <button className="review-ticker-link" onClick={() => changeTab('reviews')}>View all</button>
     </aside>}
     {notice && <div className="notice" role="status" aria-live="polite">{notice}<button onClick={() => setNotice('')} aria-label="Dismiss">×</button></div>}
+    {activeMaterial && <div className="material-viewer-backdrop" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setActiveMaterial(null) }}>
+      <section className="material-viewer" role="dialog" aria-modal="true" aria-labelledby="material-viewer-title">
+        <header className="material-viewer-header">
+          <div><span className="eyebrow">PSB IN-SITE VIEWER</span><h2 id="material-viewer-title">{activeMaterial.title}</h2><small>{activeMaterial.subject || 'Physics'} · {activeMaterial.grade_label || activeMaterial.class_level || 'All levels'}</small></div>
+          <div className="material-viewer-actions">
+            {activeMaterial._key !== 'quizzes' && <button className="share-inline-button" onClick={() => void shareContent(activeMaterial, activeMaterial._key as ContentKey)} disabled={busy}><Share2 size={15}/> Share</button>}
+            <button className="viewer-close" onClick={() => setActiveMaterial(null)} aria-label="Close viewer"><X size={20}/></button>
+          </div>
+        </header>
+        <div className="material-viewer-body" onContextMenu={e => e.preventDefault()}>
+          {materialLoading ? <div className="share-state"><div className="share-spinner"/><p>Preparing secure preview…</p></div>
+            : materialError ? <div className="share-preview-message"><p>{materialError}</p></div>
+            : activeMaterial._key === 'videos' && materialUrl
+              ? <div className="share-viewer-frame">{isDirectVideoUrl(materialUrl) ? <video src={materialUrl} controls controlsList="nodownload noplaybackrate" disablePictureInPicture playsInline/> : <iframe src={getVideoEmbedUrl(materialUrl)} title={activeMaterial.title + ' video'} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen referrerPolicy="strict-origin-when-cross-origin"/>}</div>
+              : materialUrl && /\.pdf(?:$|[?#])/i.test(activeMaterial.file_path || materialUrl)
+                ? <iframe className="share-file-preview" src={materialUrl + '#toolbar=0&navpanes=0&scrollbar=0'} title={activeMaterial.title + ' PDF preview'}/>
+                : materialUrl && /\.(png|jpe?g|webp|gif)(?:$|[?#])/i.test(activeMaterial.file_path || materialUrl)
+                  ? <img className="share-image-preview" src={materialUrl} alt={activeMaterial.title}/>
+                  : materialUrl && activeMaterial.file_path
+                    ? <div className="share-preview-message"><FileText size={25}/><b>Preview not available for this file type</b><p>Please ask the teacher for a PDF version for in-site viewing.</p></div>
+                    : materialUrl
+                      ? <div className="share-viewer-frame"><iframe src={materialUrl} title={activeMaterial.title + ' embedded material'} sandbox="allow-scripts allow-same-origin allow-presentation" allowFullScreen/></div>
+                      : activeMaterial.content
+                        ? <article className="share-note-content">{activeMaterial.content}</article>
+                        : <div className="share-preview-message"><p>No preview is available for this material.</p></div>}
+        </div>
+        <footer className="view-only-note">Viewing mode · Download controls are hidden where supported. Screen capture cannot be completely prevented in a browser.</footer>
+      </section>
+    </div>}
     <footer className="footer"><div className="brand footer-brand"><PSBMark small/><span><b>PHYSICS <i>BY SURAJ BHARDWAJ</i></b><small>Concept to Clarity · PSB</small></span></div><div className="footer-links">{['home', ...nav.map(x => x.id)].map(x => <button key={x} onClick={() => changeTab(x as Tab)}>{x === 'home' ? 'Home' : x === 'about' ? 'About' : x === 'contact' ? 'Contact' : x === 'reviews' ? 'Reviews' : labelFor[x as ContentKey] || x}</button>)}</div><small>© {new Date().getFullYear()} Physics by Suraj Bhardwaj. PSB.</small></footer>
   </div>
 }
