@@ -1,8 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import * as pdfjsLib from 'pdfjs-dist'
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
 type PdfPreviewProps = {
   url: string
@@ -45,31 +41,44 @@ export default function PdfPreview({ url, title }: PdfPreviewProps) {
 
     // Range requests let large chapter PDFs load a page at a time rather than
     // waiting for the entire 16–35 MB document to download before preview.
-    const task = pdfjsLib.getDocument({
-      url,
-      rangeChunkSize: 256 * 1024,
-      disableRange: false,
-      disableStream: false,
-      withCredentials: false
-    })
-    task.onProgress = (value: { loaded: number; total?: number }) => {
+    let task: any = null
+    void Promise.all([
+      import('pdfjs-dist'),
+      import('pdfjs-dist/build/pdf.worker.min.mjs?url')
+    ]).then(([pdfjsLib, workerUrl]) => {
       if (!alive) return
-      if (value.total && value.total > 0) {
-        setProgress(Math.min(99, Math.round((value.loaded / value.total) * 100)))
+      pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl.default
+      task = pdfjsLib.getDocument({
+        url,
+        rangeChunkSize: 256 * 1024,
+        disableRange: false,
+        disableStream: false,
+        withCredentials: false
+      })
+      task.onProgress = (value: { loaded: number; total?: number }) => {
+        if (!alive) return
+        if (value.total && value.total > 0) {
+          setProgress(Math.min(99, Math.round((value.loaded / value.total) * 100)))
+        }
       }
-    }
-    task.promise.then((pdf: any) => {
-      if (!alive) {
-        void task.destroy()
-        return
-      }
-      documentRef.current = pdf
-      setNumPages(pdf.numPages)
-      setLoading(false)
-      setProgress(100)
+      task.promise.then((pdf: any) => {
+        if (!alive) {
+          void task?.destroy?.()
+          return
+        }
+        documentRef.current = pdf
+        setNumPages(pdf.numPages)
+        setLoading(false)
+        setProgress(100)
+      }).catch((reason: unknown) => {
+        if (!alive) return
+        const message = reason instanceof Error ? reason.message : 'The PDF could not be loaded.'
+        setError(message)
+        setLoading(false)
+      })
     }).catch((reason: unknown) => {
       if (!alive) return
-      const message = reason instanceof Error ? reason.message : 'The PDF could not be loaded.'
+      const message = reason instanceof Error ? reason.message : 'The PDF viewer could not be loaded.'
       setError(message)
       setLoading(false)
     })
@@ -77,7 +86,7 @@ export default function PdfPreview({ url, title }: PdfPreviewProps) {
     return () => {
       alive = false
       renderTaskRef.current?.cancel?.()
-      void task.destroy()
+      void task?.destroy?.()
     }
   }, [url])
 
