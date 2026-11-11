@@ -776,3 +776,38 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
  .share-card-heading{align-items:flex-start}
  .share-page .share-shell{padding:24px 14px}
 }
+
+
+/* PSB branding: transparent artwork inside a round frame, no square tile. */
+.psb-mark,
+.psb-mark-small {
+  border-radius: 50% !important;
+  border: 1px solid rgba(120, 226, 232, .48) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  overflow: hidden;
+  padding: 4px;
+}
+.psb-logo-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 5px rgba(120, 226, 232, .18));
+}
+.splash-screen img {
+  width: clamp(150px, 32vw, 220px) !important;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  border-radius: 50% !important;
+  border: 2px solid rgba(120, 226, 232, .48);
+  padding: 10px;
+  background: transparent !important;
+  box-shadow: 0 0 28px rgba(120, 226, 232, .14);
+}
+@media (max-width: 620px) {
+  .psb-mark { border-radius: 50% !important; }
+  .psb-mark-small { border-radius: 50% !important; }
+  .splash-screen img { width: min(65vw, 205px) !important; }
+}
