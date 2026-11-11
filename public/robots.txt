@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /account
+Disallow: /r/
+Disallow: /s/
+
+Sitemap: https://physicsbysurajbhardwaj.in/sitemap.xml
