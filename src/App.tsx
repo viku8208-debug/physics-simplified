@@ -112,6 +112,7 @@ export default function App() {
   const [name, setName] = useState('')
   const [studentClass, setStudentClass] = useState('12')
   const [busy, setBusy] = useState(false)
+  const authRequestInFlight = useRef(false)
   const [notice, setNotice] = useState('')
   const [rows, setRows] = useState<Record<ContentKey, Row[]>>({ notes: [], videos: [], resources: [], quizzes: [] })
   const [loading, setLoading] = useState(false)
@@ -159,6 +160,23 @@ export default function App() {
   const userEmail = session?.user?.email || ''
 
   const notify = (message: string) => setNotice(message)
+  const authErrorMessage = (error: any) => {
+    const message = String(error?.message || 'Authentication failed.')
+    const code = String(error?.code || '')
+    if (error?.status === 429 || code.includes('rate_limit') || /rate limit|too many requests|only request this after/i.test(message)) {
+      return 'The email service has reached its sending limit. Please wait before trying again. Repeated taps will not help. The site administrator needs to enable a custom email service.'
+    }
+    if (code === 'invalid_credentials') {
+      return 'Email or password is incorrect. If you just created this account, verify your email first and then sign in.'
+    }
+    if (code === 'email_not_confirmed' || /email not confirmed/i.test(message)) {
+      return 'Please open the verification email and confirm your email address before signing in.'
+    }
+    if (code === 'user_already_exists') {
+      return 'An account with this email already exists. Please switch to Sign in.'
+    }
+    return message
+  }
   const changeTab = (t: Tab) => {
     const keepAdminPath = t === 'admin' || (t === 'account' && window.location.pathname.toLowerCase().endsWith('/admin.html'))
     const nextPath = keepAdminPath ? '/admin.html' : tabPath[t]
@@ -371,27 +389,50 @@ export default function App() {
 
   const signIn = async (e: FormEvent) => {
     e.preventDefault()
+    if (authRequestInFlight.current) return
     if (!supabase) return notify('Backend configuration is missing. Contact the site administrator.')
+    authRequestInFlight.current = true
     setBusy(true); setNotice('')
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-    setBusy(false)
-    if (error) notify(error.message)
-    else { await refreshAuth(); await loadContent(); notify('You are signed in.'); changeTab(window.location.pathname.toLowerCase().endsWith('/admin.html') ? 'admin' : 'home') }
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+      if (error) { notify(authErrorMessage(error)); return }
+      await refreshAuth()
+      await loadContent()
+      notify('You are signed in.')
+      changeTab(window.location.pathname.toLowerCase().endsWith('/admin.html') ? 'admin' : 'home')
+    } catch (error) {
+      notify(authErrorMessage(error))
+    } finally {
+      authRequestInFlight.current = false
+      setBusy(false)
+    }
   }
   const signUp = async (e: FormEvent) => {
     e.preventDefault()
+    if (authRequestInFlight.current) return
     if (!supabase) return notify('Backend configuration is missing. Contact the site administrator.')
+    authRequestInFlight.current = true
     setBusy(true); setNotice('')
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(), password,
-      options: { data: { full_name: name.trim(), class_level: Number(studentClass) } }
-    })
-    setBusy(false)
-    if (error) notify(error.message)
-    else {
-      if (data.user && data.session) await supabase.from('profiles').upsert({ id: data.user.id, full_name: name.trim(), class_level: Number(studentClass) }, { onConflict: 'id' })
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo: 'https://physicsbysurajbhardwaj.in/',
+          data: { full_name: name.trim(), class_level: Number(studentClass) }
+        }
+      })
+      if (error) { notify(authErrorMessage(error)); return }
+      if (data.user && data.session) {
+        await supabase.from('profiles').upsert({ id: data.user.id, full_name: name.trim(), class_level: Number(studentClass) }, { onConflict: 'id' })
+      }
       setAuthMode('signin')
       notify('Confirmation email sent to ' + email.trim() + '. Verify it, then sign in.')
+    } catch (error) {
+      notify(authErrorMessage(error))
+    } finally {
+      authRequestInFlight.current = false
+      setBusy(false)
     }
   }
   const updateRecoveryPassword = async (e: FormEvent) => {
@@ -404,11 +445,19 @@ export default function App() {
     else { setRecovering(false); setNewPassword(''); notify('Password updated successfully. You can now sign in with your new password.') }
   }
   const resetPassword = async () => {
+    if (authRequestInFlight.current) return
     if (!supabase || !email.trim()) return notify('Enter your email address first.')
+    authRequestInFlight.current = true
     setBusy(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: window.location.origin })
-    setBusy(false)
-    notify(error ? error.message : 'Password reset email sent to ' + email.trim() + '.')
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: 'https://physicsbysurajbhardwaj.in/' })
+      notify(error ? authErrorMessage(error) : 'Password reset email sent to ' + email.trim() + '.')
+    } catch (error) {
+      notify(authErrorMessage(error))
+    } finally {
+      authRequestInFlight.current = false
+      setBusy(false)
+    }
   }
   const saveProfile = async (e: FormEvent) => {
     e.preventDefault()
@@ -986,7 +1035,7 @@ export default function App() {
         <label>Password<input required minLength={6} type="password" autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 6 characters"/></label>
         <button className="primary full" disabled={busy}>{busy ? 'Please wait…' : authMode === 'signin' ? 'Sign in' : 'Create account'} <ArrowUpRight size={17}/></button>
         {authMode === 'signin' && <button type="button" className="switch" onClick={resetPassword} disabled={busy}>Forgot password? Send reset email</button>}
-        <button type="button" className="switch" onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}>{authMode === 'signin' ? 'New here? Create an account' : 'Already registered? Sign in'}</button>
+        <button type="button" className="switch" disabled={busy} onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}>{authMode === 'signin' ? 'New here? Create an account' : 'Already registered? Sign in'}</button>
       </form> : <div className="account-layout"><div className="account-summary"><UserRound/><b>{userEmail}</b><span>{staff ? 'Teacher account' : 'Student account'}</span><button className="secondary" onClick={signOut}><LogOut size={15}/> Sign out</button></div>
         <form className="form-card" onSubmit={saveProfile}><h2>Student profile</h2><label>Full name<input value={profile.full_name} readOnly disabled/><small className="review-hint">Registered name is locked after account creation.</small></label><label>Class<input value={'Class ' + profile.class_level} readOnly disabled/><small className="review-hint">Registered class is locked after account creation.</small></label><label>Phone (optional)<input value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} placeholder="Your contact number"/></label><button className="primary full" disabled={busy}>Save contact number <Check size={16}/></button></form>
         <div className="history-panel"><h2><Trophy size={18}/> Recent quiz attempts</h2>{history.length ? history.map(h => <div className="history-row" key={h.id}><span>{rows.quizzes.find(q => q.id === h.quiz_id)?.title || 'Physics quiz'}</span><b>{h.score}/{h.total_questions}</b><small>{new Date(h.attempted_at).toLocaleDateString()}</small></div>) : <p>No quiz attempts yet. Start a quiz to see your progress here.</p>}</div>
