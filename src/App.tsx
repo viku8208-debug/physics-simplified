@@ -10,10 +10,10 @@ type ContentKey = 'notes' | 'videos' | 'resources' | 'quizzes'
 const tableFor: Record<ContentKey, string> = { notes: 'notes', videos: 'video_lessons', resources: 'resources', quizzes: 'quizzes' }
 const labelFor: Record<ContentKey, string> = { notes: 'Notes', videos: 'Video lessons', resources: 'Resources', quizzes: 'Quizzes' }
 const nav: { id: Tab; label: string }[] = [
-  { id: 'posts', label: 'Posts' }, { id: 'notes', label: 'Notes' }, { id: 'videos', label: 'Video lessons' },
+  { id: 'notes', label: 'Notes' }, { id: 'videos', label: 'Video lessons' },
   { id: 'resources', label: 'Resources' }, { id: 'quizzes', label: 'Quizzes' },
-  { id: 'about', label: 'About Suraj Sir' }, { id: 'contact', label: 'Contact' },
-  { id: 'reviews', label: 'Reviews' }
+  { id: 'posts', label: 'Posts' }, { id: 'about', label: 'About Suraj Sir' },
+  { id: 'contact', label: 'Contact' }, { id: 'reviews', label: 'Reviews' }
 ]
 const tabPath: Record<Tab, string> = {
   home: '/', posts: '/posts', notes: '/notes', videos: '/videos', resources: '/resources',
