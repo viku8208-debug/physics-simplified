@@ -13,6 +13,10 @@
       "destination": "/"
     },
     {
+      "source": "/posts",
+      "destination": "/"
+    },
+    {
       "source": "/notes",
       "destination": "/"
     },
