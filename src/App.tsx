@@ -108,6 +108,11 @@ export default function App() {
   const [staff, setStaff] = useState(false)
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin')
   const [email, setEmail] = useState('')
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState(() => {
+    try { return window.localStorage.getItem('psb-pending-verification-email') || '' }
+    catch { return '' }
+  })
+  const [verificationCheckBusy, setVerificationCheckBusy] = useState(false)
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
   const [studentClass, setStudentClass] = useState('12')
@@ -160,6 +165,20 @@ export default function App() {
   const userEmail = session?.user?.email || ''
 
   const notify = (message: string) => setNotice(message)
+  const clearVerifiedPendingEmail = (user: any) => {
+    if (!user?.email_confirmed_at) return false
+    const verifiedEmail = String(user.email || '').trim().toLowerCase()
+    let pendingEmail = ''
+    try { pendingEmail = window.localStorage.getItem('psb-pending-verification-email') || '' }
+    catch { /* Storage may be unavailable in private browsing. */ }
+    if (pendingEmail && pendingEmail.trim().toLowerCase() !== verifiedEmail) return false
+    try { window.localStorage.removeItem('psb-pending-verification-email') }
+    catch { /* State still clears for the current page. */ }
+    setPendingVerificationEmail('')
+    setPassword('')
+    setAuthMode('signin')
+    return true
+  }
   const authErrorMessage = (error: any) => {
     const message = String(error?.message || 'Authentication failed.')
     const code = String(error?.code || '')
@@ -191,6 +210,7 @@ export default function App() {
     const { data, error } = await supabase.auth.getSession()
     if (error) { notify(error.message); return }
     const s = data.session
+    if (s?.user) clearVerifiedPendingEmail(s.user)
     setSession(s)
     setStaff(['teacher', 'admin'].includes(s?.user?.app_metadata?.role || ''))
     if (s?.user) {
@@ -293,6 +313,7 @@ export default function App() {
     if (!supabase) return
     const { data } = supabase.auth.onAuthStateChange((event, s) => {
       if (event === 'PASSWORD_RECOVERY') { setRecovering(true); changeTab('account') }
+      if (s?.user) clearVerifiedPendingEmail(s.user)
       setSession(s)
       const allowed = ['teacher', 'admin'].includes(s?.user?.app_metadata?.role || '')
       setStaff(allowed)
@@ -302,6 +323,21 @@ export default function App() {
     return () => data.subscription.unsubscribe()
   }, [])
   useEffect(() => { if (staff) { void loadContent(); void loadTeacherData() } }, [staff])
+  useEffect(() => {
+    if (!pendingVerificationEmail || !supabase) return
+    const recheckOnReturn = () => {
+      if (document.visibilityState === 'visible') void refreshAuth()
+    }
+    window.addEventListener('focus', recheckOnReturn)
+    document.addEventListener('visibilitychange', recheckOnReturn)
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('focus', recheckOnReturn)
+      document.removeEventListener('visibilitychange', recheckOnReturn)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [pendingVerificationEmail])
   useEffect(() => { if (session?.user) void loadStudentHistory() }, [session?.user?.id])
   useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 1650)
@@ -426,8 +462,16 @@ export default function App() {
       if (data.user && data.session) {
         await supabase.from('profiles').upsert({ id: data.user.id, full_name: name.trim(), class_level: Number(studentClass) }, { onConflict: 'id' })
       }
-      setAuthMode('signin')
-      notify('Confirmation email sent to ' + email.trim() + '. Verify it, then sign in.')
+      if (data.user?.email_confirmed_at) {
+        clearVerifiedPendingEmail(data.user)
+        notify('Your email is already verified. You can continue to your account.')
+      } else {
+        const destinationEmail = email.trim()
+        try { window.localStorage.setItem('psb-pending-verification-email', destinationEmail) }
+        catch { /* Keep the blocking modal for the current page even without storage. */ }
+        setPendingVerificationEmail(destinationEmail)
+        setNotice('')
+      }
     } catch (error) {
       notify(authErrorMessage(error))
     } finally {
@@ -435,6 +479,52 @@ export default function App() {
       setBusy(false)
     }
   }
+  const checkEmailVerification = async () => {
+    if (!supabase || !pendingVerificationEmail || verificationCheckBusy) return
+    setVerificationCheckBusy(true)
+    try {
+      const { data, error } = await supabase.auth.getUser()
+      let verifiedUser = !error ? data.user : null
+      if (
+        (!verifiedUser?.email_confirmed_at ||
+          String(verifiedUser.email || '').toLowerCase() !== pendingVerificationEmail.toLowerCase()) &&
+        password
+      ) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+          email: pendingVerificationEmail,
+          password
+        })
+        if (!signInError) verifiedUser = signInData.user
+        else if (signInError.code === 'email_not_confirmed') {
+          notify('Email abhi verify nahi hua hai. Inbox mein confirmation link open karo.')
+          return
+        } else if (signInError.code === 'invalid_credentials') {
+          notify('Verification check nahi ho paaya. Confirmation link isi browser mein open karke phir check karo.')
+          return
+        } else {
+          notify(authErrorMessage(signInError))
+          return
+        }
+      }
+      if (
+        verifiedUser?.email_confirmed_at &&
+        String(verifiedUser.email || '').toLowerCase() === pendingVerificationEmail.toLowerCase()
+      ) {
+        clearVerifiedPendingEmail(verifiedUser)
+        await refreshAuth()
+        await loadContent()
+        notify('Email verified successfully. Welcome to Physics by Suraj Bhardwaj!')
+        changeTab('home')
+      } else {
+        notify('Verification abhi detect nahi hui. Email link open karne ke baad yahan dobara check karo.')
+      }
+    } catch (error) {
+      notify(authErrorMessage(error))
+    } finally {
+      setVerificationCheckBusy(false)
+    }
+  }
+
   const updateRecoveryPassword = async (e: FormEvent) => {
     e.preventDefault()
     if (!supabase || newPassword.length < 8) return notify('Use a password with at least 8 characters.')
@@ -1125,6 +1215,22 @@ export default function App() {
       </div>
       <button className="review-ticker-link" onClick={() => changeTab('reviews')}>View all</button>
     </aside>}
+    {pendingVerificationEmail && <div className="verification-overlay" role="presentation">
+      <section className="verification-dialog" role="dialog" aria-modal="true" aria-labelledby="verification-title" aria-describedby="verification-description">
+        <div className="verification-icon"><Mail size={28}/></div>
+        <span className="eyebrow">ONE LAST STEP</span>
+        <h2 id="verification-title">Verify your email</h2>
+        <p id="verification-description">A verification email has been sent to</p>
+        <strong className="verification-address">{pendingVerificationEmail}</strong>
+        <p className="verification-instructions">Open the email from Physics by Suraj Bhardwaj and tap <b>Confirm Email</b>. Keep this page open while you verify your address.</p>
+        <button className="primary full verification-check-button" onClick={() => void checkEmailVerification()} disabled={verificationCheckBusy}>
+          {verificationCheckBusy ? 'Checking verification…' : "I've verified my email"}
+          <RefreshCw size={17}/>
+        </button>
+        <small className="verification-wait-note">This screen will stay here until your email is verified.</small>
+        <p className="verification-spam-note">Can't find the email? Check your Spam or Promotions folder.</p>
+      </section>
+    </div>}
     {notice && <div className="notice" role="status" aria-live="polite">{notice}<button onClick={() => setNotice('')} aria-label="Dismiss">×</button></div>}
     {activeMaterial && <div className="material-viewer-backdrop" role="presentation" onMouseDown={e => { if (e.target === e.currentTarget) setActiveMaterial(null) }}>
       <section className="material-viewer" role="dialog" aria-modal="true" aria-labelledby="material-viewer-title">
