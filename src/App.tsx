@@ -2,21 +2,21 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ChangeEvent } from 'react'
 import { supabase } from './lib/supabase'
 import PdfPreview from './PdfPreview'
-import { Atom, BookOpen, Video, FileText, ClipboardList, LogIn, LogOut, Menu, X, ArrowUpRight, ShieldCheck, GraduationCap, Mail, Lock, Plus, RefreshCw, Upload, Trash2, Pencil, Check, CircleHelp, Trophy, UserRound, MessageSquare, Eye, EyeOff, RotateCcw, Play, Clock3, Sparkles, Share2 } from 'lucide-react'
+import { Atom, BookOpen, Video, FileText, ClipboardList, LogIn, LogOut, Menu, X, ArrowUpRight, ShieldCheck, GraduationCap, Mail, Lock, Plus, RefreshCw, Upload, Trash2, Pencil, Check, CircleHelp, Trophy, UserRound, MessageSquare, Heart, Eye, EyeOff, RotateCcw, Play, Clock3, Sparkles, Share2 } from 'lucide-react'
 
-type Tab = 'home' | 'notes' | 'videos' | 'resources' | 'quizzes' | 'about' | 'contact' | 'reviews' | 'account' | 'admin'
+type Tab = 'home' | 'posts' | 'notes' | 'videos' | 'resources' | 'quizzes' | 'about' | 'contact' | 'reviews' | 'account' | 'admin'
 type Row = Record<string, any>
 type ContentKey = 'notes' | 'videos' | 'resources' | 'quizzes'
 const tableFor: Record<ContentKey, string> = { notes: 'notes', videos: 'video_lessons', resources: 'resources', quizzes: 'quizzes' }
 const labelFor: Record<ContentKey, string> = { notes: 'Notes', videos: 'Video lessons', resources: 'Resources', quizzes: 'Quizzes' }
 const nav: { id: Tab; label: string }[] = [
-  { id: 'notes', label: 'Notes' }, { id: 'videos', label: 'Video lessons' },
+  { id: 'posts', label: 'Posts' }, { id: 'notes', label: 'Notes' }, { id: 'videos', label: 'Video lessons' },
   { id: 'resources', label: 'Resources' }, { id: 'quizzes', label: 'Quizzes' },
   { id: 'about', label: 'About Suraj Sir' }, { id: 'contact', label: 'Contact' },
   { id: 'reviews', label: 'Reviews' }
 ]
 const tabPath: Record<Tab, string> = {
-  home: '/', notes: '/notes', videos: '/videos', resources: '/resources',
+  home: '/', posts: '/posts', notes: '/notes', videos: '/videos', resources: '/resources',
   quizzes: '/quizzes', about: '/about', contact: '/contact', reviews: '/reviews',
   account: '/account', admin: '/admin.html'
 }
@@ -29,6 +29,10 @@ const seoByTab: Record<Tab, { title: string; description: string }> = {
   home: {
     title: 'Physics by Suraj Bhardwaj | Concept to Clarity',
     description: 'Learn Physics with Suraj Bhardwaj. Explore concept-based lessons, notes, worksheets, video lessons, study resources and quizzes for school and competitive-exam students.'
+  },
+  posts: {
+    title: 'Physics Updates & Posts | Physics by Suraj Bhardwaj',
+    description: 'Read announcements, learning updates and posts from Suraj Bhardwaj. Like, comment and share with the PSB student community.'
   },
   notes: {
     title: 'Physics Notes & Worksheets | Physics by Suraj Bhardwaj',
@@ -119,6 +123,12 @@ export default function App() {
   const [busy, setBusy] = useState(false)
   const authRequestInFlight = useRef(false)
   const [notice, setNotice] = useState('')
+  const [posts, setPosts] = useState<Row[]>([])
+  const [postComments, setPostComments] = useState<Row[]>([])
+  const [myPostLikes, setMyPostLikes] = useState<Row[]>([])
+  const [postDraft, setPostDraft] = useState({ body: '', image_url: '', is_published: true })
+  const [editingPostId, setEditingPostId] = useState('')
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({})
   const [rows, setRows] = useState<Record<ContentKey, Row[]>>({ notes: [], videos: [], resources: [], quizzes: [] })
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState(emptyForm)
@@ -236,6 +246,40 @@ export default function App() {
     setRows(next as Record<ContentKey, Row[]>)
     setLoading(false)
   }
+  const loadPosts = async () => {
+    if (!supabase) return
+    const { data, error } = await supabase
+      .from('posts')
+      .select('id,body,image_url,is_published,likes_count,comments_count,created_by,created_at')
+      .order('created_at', { ascending: false })
+      .limit(100)
+    if (error) {
+      console.warn('Posts could not be loaded:', error.message)
+      return
+    }
+    const nextPosts = data || []
+    setPosts(nextPosts)
+    const postIds = nextPosts.map(post => post.id)
+    if (!postIds.length) {
+      setPostComments([])
+      setMyPostLikes([])
+      return
+    }
+    const [commentsResult, likesResult] = await Promise.all([
+      supabase.from('post_comments')
+        .select('id,post_id,user_id,author_name,body,created_at')
+        .in('post_id', postIds)
+        .order('created_at', { ascending: true })
+        .limit(500),
+      session?.user
+        ? supabase.from('post_likes').select('post_id,user_id').eq('user_id', session.user.id).in('post_id', postIds)
+        : Promise.resolve({ data: [], error: null } as any)
+    ])
+    if (!commentsResult.error) setPostComments(commentsResult.data || [])
+    else console.warn('Post comments could not be loaded:', commentsResult.error.message)
+    if (!likesResult.error) setMyPostLikes(likesResult.data || [])
+    else console.warn('Post likes could not be loaded:', likesResult.error.message)
+  }
   const loadTeacherData = async () => {
     if (!supabase || !staff) return
     const [m, s] = await Promise.all([
@@ -323,6 +367,14 @@ export default function App() {
     return () => data.subscription.unsubscribe()
   }, [])
   useEffect(() => { if (staff) { void loadContent(); void loadTeacherData() } }, [staff])
+  useEffect(() => { void loadPosts() }, [session?.user?.id, staff])
+  useEffect(() => {
+    if (tab !== 'posts') return
+    const postId = new URLSearchParams(window.location.search).get('post')
+    if (!postId) return
+    const timer = window.setTimeout(() => document.getElementById('post-' + postId)?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 220)
+    return () => window.clearTimeout(timer)
+  }, [tab, posts.length])
   useEffect(() => {
     if (!pendingVerificationEmail || !supabase) return
     const recheckOnReturn = () => {
@@ -903,6 +955,111 @@ export default function App() {
     if (error) notify(error.message)
     else { await loadTeacherData(); notify('Message status updated.') }
   }
+  const savePost = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!supabase || !staff || !session?.user) return notify('Teacher permission is required to publish a post.')
+    const body = postDraft.body.trim()
+    if (body.length < 2 || body.length > 5000) return notify('Write a post between 2 and 5,000 characters.')
+    const imageUrl = postDraft.image_url.trim()
+    if (imageUrl) {
+      try {
+        const parsed = new URL(imageUrl)
+        if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Invalid protocol')
+      } catch {
+        return notify('Enter a valid image URL starting with https:// or http://.')
+      }
+    }
+    setBusy(true)
+    const values = { body, image_url: imageUrl || null, is_published: postDraft.is_published, updated_at: new Date().toISOString() }
+    const result = editingPostId
+      ? await supabase.from('posts').update(values).eq('id', editingPostId)
+      : await supabase.from('posts').insert({ ...values, created_by: session.user.id })
+    setBusy(false)
+    if (result.error) return notify(result.error.message)
+    setPostDraft({ body: '', image_url: '', is_published: true })
+    setEditingPostId('')
+    await loadPosts()
+    notify(editingPostId ? 'Post updated successfully.' : postDraft.is_published ? 'Post published for students.' : 'Post saved as a draft.')
+  }
+  const editPost = (post: Row) => {
+    setEditingPostId(post.id)
+    setPostDraft({ body: post.body || '', image_url: post.image_url || '', is_published: !!post.is_published })
+    document.getElementById('post-admin-composer')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+  const togglePostPublished = async (post: Row) => {
+    if (!supabase || !staff) return
+    const { error } = await supabase.from('posts').update({ is_published: !post.is_published, updated_at: new Date().toISOString() }).eq('id', post.id)
+    if (error) return notify(error.message)
+    await loadPosts()
+    notify(post.is_published ? 'Post moved to drafts.' : 'Post published.')
+  }
+  const deletePost = async (post: Row) => {
+    if (!supabase || !staff || !window.confirm('Delete this post and its comments permanently?')) return
+    const { error } = await supabase.from('posts').delete().eq('id', post.id)
+    if (error) return notify(error.message)
+    await loadPosts()
+    notify('Post deleted.')
+  }
+  const togglePostLike = async (post: Row) => {
+    if (!session?.user) {
+      notify('Please sign in before liking a post.')
+      changeTab('account')
+      return
+    }
+    if (!supabase) return
+    const alreadyLiked = myPostLikes.some(like => like.post_id === post.id)
+    const result = alreadyLiked
+      ? await supabase.from('post_likes').delete().eq('post_id', post.id).eq('user_id', session.user.id)
+      : await supabase.from('post_likes').insert({ post_id: post.id, user_id: session.user.id })
+    if (result.error) return notify(result.error.message)
+    await loadPosts()
+  }
+  const submitPostComment = async (e: FormEvent, post: Row) => {
+    e.preventDefault()
+    if (!session?.user) {
+      notify('Please sign in before commenting.')
+      changeTab('account')
+      return
+    }
+    if (!supabase) return
+    const body = (commentDrafts[post.id] || '').trim()
+    if (!body || body.length > 2000) return notify('Write a comment between 1 and 2,000 characters.')
+    const { error } = await supabase.from('post_comments').insert({
+      post_id: post.id,
+      user_id: session.user.id,
+      author_name: profile.full_name.trim() || 'Student',
+      body
+    })
+    if (error) return notify(error.message)
+    setCommentDrafts(current => ({ ...current, [post.id]: '' }))
+    await loadPosts()
+  }
+  const deletePostComment = async (comment: Row) => {
+    if (!supabase || (!staff && comment.user_id !== session?.user?.id)) return
+    const { error } = await supabase.from('post_comments').delete().eq('id', comment.id)
+    if (error) return notify(error.message)
+    await loadPosts()
+  }
+  const sharePost = async (post: Row) => {
+    const url = new URL('/posts', window.location.origin)
+    url.searchParams.set('post', post.id)
+    const shareUrl = url.toString()
+    const shareText = (String(post.body || '').trim().slice(0, 120) || 'A post from Suraj Bhardwaj') + ' · Physics by Suraj Bhardwaj'
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Physics by Suraj Bhardwaj', text: shareText, url: shareUrl })
+        return
+      } catch (shareError) {
+        if ((shareError as Error)?.name === 'AbortError') return
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      notify('Post link copied. Share it with your friends.')
+    } catch {
+      notify('Share this post link: ' + shareUrl)
+    }
+  }
   const sendContact = async (e: FormEvent) => {
     e.preventDefault()
     if (!supabase) return notify('Backend configuration is missing.')
@@ -941,6 +1098,7 @@ export default function App() {
     }
   }
   const contentRows = (Object.keys(tableFor) as ContentKey[]).flatMap(key => rows[key].map(item => ({ ...item, _key: key, _table: tableFor[key] })))
+  const visiblePosts = posts.filter(post => post.is_published || staff)
   const publishedCount = (key: ContentKey) => rows[key].filter(item => item.is_published).length
 
   const cards = (items: Row[], key: ContentKey) => {
@@ -1071,6 +1229,30 @@ export default function App() {
       </section>
     </main>}
 
+    {tab === 'posts' && <main className="page posts-page">
+      <div className="page-intro"><span className="eyebrow">PSB STUDENT COMMUNITY</span><h1>Updates & posts<em>.</em></h1><p>Announcements, learning tips and updates shared by Suraj Sir. Join the conversation.</p></div>
+      <div className="posts-feed">
+        {visiblePosts.length ? visiblePosts.map(post => {
+          const liked = myPostLikes.some(like => like.post_id === post.id)
+          const commentsForPost = postComments.filter(comment => comment.post_id === post.id)
+          return <article className="post-card" id={'post-' + post.id} key={post.id}>
+            <div className="post-author-row"><div className="post-avatar"><PSBMark small/></div><div className="post-author-copy"><b>Suraj Bhardwaj</b><span>Physics Educator · {new Date(post.created_at).toLocaleString()}</span></div>{!post.is_published && staff && <span className="post-draft-label">DRAFT</span>}</div>
+            <p className="post-body">{post.body}</p>
+            {post.image_url && <a className="post-image-link" href={post.image_url} target="_blank" rel="noreferrer"><img className="post-image" src={post.image_url} alt="Post attachment" loading="lazy"/></a>}
+            <div className="post-action-row">
+              <button type="button" className={liked ? 'post-action is-liked' : 'post-action'} onClick={() => void togglePostLike(post)} aria-pressed={liked}><Heart size={18} fill={liked ? 'currentColor' : 'none'}/><span>{post.likes_count || 0} {post.likes_count === 1 ? 'Like' : 'Likes'}</span></button>
+              <button type="button" className="post-action" onClick={() => document.getElementById('post-comments-' + post.id)?.scrollIntoView({ behavior: 'smooth', block: 'center' })}><MessageSquare size={18}/><span>{post.comments_count || 0} Comments</span></button>
+              <button type="button" className="post-action" onClick={() => void sharePost(post)}><Share2 size={17}/><span>Share</span></button>
+            </div>
+            <div className="post-comments" id={'post-comments-' + post.id}>
+              {commentsForPost.length > 0 && <div className="post-comment-list">{commentsForPost.map(comment => <div className="post-comment" key={comment.id}><div><b>{comment.author_name}</b><span>{comment.body}</span><small>{new Date(comment.created_at).toLocaleString()}</small></div>{(staff || comment.user_id === session?.user?.id) && <button type="button" className="comment-delete" onClick={() => void deletePostComment(comment)} aria-label="Delete comment"><Trash2 size={14}/></button>}</div>)}</div>}
+              {session ? <form className="post-comment-form" onSubmit={e => void submitPostComment(e, post)}><input aria-label="Write a comment" maxLength={2000} value={commentDrafts[post.id] || ''} onChange={e => setCommentDrafts(current => ({ ...current, [post.id]: e.target.value }))} placeholder="Write a comment…" required/><button type="submit" className="post-comment-send" aria-label="Post comment"><ArrowUpRight size={17}/></button></form> : <button type="button" className="post-signin-prompt" onClick={() => changeTab('account')}>Sign in to join the discussion</button>}
+            </div>
+          </article>
+        }) : <div className="empty"><div className="empty-symbol"><MessageSquare/></div><h3>No posts yet</h3><p>When Suraj Sir shares an update, it will appear here.</p></div>}
+      </div>
+    </main>}
+
     {(['notes', 'videos', 'resources'] as ContentKey[]).includes(tab as ContentKey) && <main className="page"><div className="page-intro"><span className="eyebrow">THE LEARNING LIBRARY</span><h1>{tab === 'notes' ? 'Study notes' : tab === 'videos' ? 'Video lessons' : 'Learning resources'}<em>.</em></h1><p>Explore the latest material published by Suraj Bhardwaj.</p><button className="refresh" onClick={loadContent}><RefreshCw size={15}/> Refresh</button></div>{loading ? <div className="empty">Loading published material…</div> : cards(rows[tab as ContentKey], tab as ContentKey)}</main>}
 
     {tab === 'quizzes' && <main className="page"><div className="page-intro"><span className="eyebrow">PRACTICE & ASSESSMENTS</span><h1>{activeQuiz ? activeQuiz.title : quizResult ? 'Assessment results' : 'Quizzes & tests'}<em>.</em></h1><p>{activeQuiz ? 'Choose the best answer. The timer starts when you begin and submits your answers automatically at zero.' : 'Attempt practice quizzes and scheduled timed tests from Suraj Sir.'}</p></div>
@@ -1169,6 +1351,16 @@ export default function App() {
             </form>}
           </div>
         </div>
+        <section className="manager-section post-admin-section" id="post-admin-composer">
+          <div className="section-head"><div><span className="eyebrow">STUDENT COMMUNITY</span><h2>{editingPostId ? 'Edit post' : 'Create a post'}</h2><p>Share an announcement, study tip or image with all students.</p></div></div>
+          <form className="form-card post-composer" onSubmit={savePost}>
+            <label>Post text<textarea required minLength={2} maxLength={5000} value={postDraft.body} onChange={e => setPostDraft({ ...postDraft, body: e.target.value })} placeholder="What would you like to share with students?"/></label>
+            <label>Image URL (optional)<input type="url" value={postDraft.image_url} onChange={e => setPostDraft({ ...postDraft, image_url: e.target.value })} placeholder="https://…"/></label>
+            <label className="check-line"><input type="checkbox" checked={postDraft.is_published} onChange={e => setPostDraft({ ...postDraft, is_published: e.target.checked })}/> Publish immediately (uncheck to save as draft)</label>
+            <div className="row-actions"><button type="button" className="secondary" onClick={() => { setEditingPostId(''); setPostDraft({ body: '', image_url: '', is_published: true }) }}>Clear</button><button className="primary" disabled={busy}>{busy ? 'Saving…' : editingPostId ? 'Save post' : 'Publish post'} <ArrowUpRight size={16}/></button></div>
+          </form>
+          {posts.length ? <div className="manage-list post-manage-list">{posts.map(post => <div className="manage-item" key={post.id}><div><span className="card-meta">{post.is_published ? 'PUBLISHED' : 'DRAFT'} · {post.likes_count || 0} likes · {post.comments_count || 0} comments</span><b>{post.body.slice(0, 130)}{post.body.length > 130 ? '…' : ''}</b><small>{new Date(post.created_at).toLocaleString()}</small></div><div className="manage-actions"><button title="Edit post" onClick={() => editPost(post)}><Pencil size={15}/></button><button title={post.is_published ? 'Unpublish post' : 'Publish post'} onClick={() => void togglePostPublished(post)}><Eye size={15}/></button><button className="danger" title="Delete post" onClick={() => void deletePost(post)}><Trash2 size={15}/></button></div></div>)}</div> : <div className="empty">No posts have been created yet.</div>}
+        </section>
         <section className="manager-section"><div className="section-head"><div><span className="eyebrow">CONTENT CONTROL</span><h2>Manage published material</h2></div><button className="refresh" onClick={loadContent}><RefreshCw size={14}/> Refresh</button></div>
           {contentRows.length ? <div className="manage-list">{contentRows.map(item => <div className="manage-item" key={item.id}><div><span className="card-meta">{labelFor[item._key as ContentKey]} · {item.is_published ? 'PUBLISHED' : 'DRAFT'}</span><b>{item.title}</b><small>{item.description || item.topic || 'No description'}</small></div><div className="manage-actions"><button title="Edit" onClick={() => setEditing({
               id: item.id, table: item._table, title: item.title, description: item.description || '', is_published: item.is_published,
@@ -1261,6 +1453,6 @@ export default function App() {
         <footer className="view-only-note">Viewing mode · Download controls are hidden where supported. Screen capture cannot be completely prevented in a browser.</footer>
       </section>
     </div>}
-    <footer className="footer"><div className="brand footer-brand"><PSBMark small/><span><b>PHYSICS <i>BY SURAJ BHARDWAJ</i></b><small>Concept to Clarity · PSB</small></span></div><div className="footer-links">{['home', ...nav.map(x => x.id)].map(x => <button key={x} onClick={() => changeTab(x as Tab)}>{x === 'home' ? 'Home' : x === 'about' ? 'About' : x === 'contact' ? 'Contact' : x === 'reviews' ? 'Reviews' : labelFor[x as ContentKey] || x}</button>)}</div><small>© {new Date().getFullYear()} Physics by Suraj Bhardwaj. PSB.</small></footer>
+    <footer className="footer"><div className="brand footer-brand"><PSBMark small/><span><b>PHYSICS <i>BY SURAJ BHARDWAJ</i></b><small>Concept to Clarity · PSB</small></span></div><div className="footer-links">{['home', ...nav.map(x => x.id)].map(x => <button key={x} onClick={() => changeTab(x as Tab)}>{x === 'home' ? 'Home' : x === 'posts' ? 'Posts' : x === 'about' ? 'About' : x === 'contact' ? 'Contact' : x === 'reviews' ? 'Reviews' : labelFor[x as ContentKey] || x}</button>)}</div><small>© {new Date().getFullYear()} Physics by Suraj Bhardwaj. PSB.</small></footer>
   </div>
 }
