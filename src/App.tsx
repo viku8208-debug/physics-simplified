@@ -367,6 +367,19 @@ export default function App() {
     return () => data.subscription.unsubscribe()
   }, [])
   useEffect(() => { if (staff) { void loadContent(); void loadTeacherData() } }, [staff])
+  useEffect(() => {
+    if (!activeMaterial) return
+    const previousOverflow = document.body.style.overflow
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setActiveMaterial(null)
+    }
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [activeMaterial?.id])
   useEffect(() => { void loadPosts() }, [session?.user?.id, staff])
   useEffect(() => {
     if (tab !== 'posts') return
