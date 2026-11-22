@@ -1138,3 +1138,104 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
 @media (prefers-reduced-motion: reduce) {
   .quiz-countdown.is-urgent { animation: none !important; }
 }
+
+
+/* Email verification gate */
+.verification-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 12000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(4, 12, 25, .82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.verification-dialog {
+  width: min(100%, 460px);
+  max-height: min(90vh, 720px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: clamp(24px, 6vw, 38px);
+  border: 1px solid rgba(120, 226, 232, .28);
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(54, 115, 191, .22), transparent 48%),
+    linear-gradient(155deg, #12283e, #0b172b 72%);
+  box-shadow: 0 28px 100px rgba(0, 0, 0, .52), 0 0 45px rgba(77, 190, 220, .10);
+  text-align: center;
+  color: #f3f7ff;
+}
+.verification-icon {
+  width: 66px;
+  height: 66px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(120, 226, 232, .35);
+  border-radius: 50%;
+  color: #7ce4ea;
+  background: rgba(120, 226, 232, .10);
+  box-shadow: 0 0 34px rgba(120, 226, 232, .12);
+}
+.verification-dialog .eyebrow {
+  margin-top: 4px;
+  color: #8ce4e8;
+  letter-spacing: .2em;
+}
+.verification-dialog h2 {
+  margin: 0;
+  font: 800 clamp(24px, 5vw, 30px)/1.2 Manrope, sans-serif;
+  letter-spacing: -.035em;
+}
+.verification-dialog p {
+  margin: 0;
+  max-width: 360px;
+  color: #b7c7da;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.verification-address {
+  width: 100%;
+  padding: 12px 14px;
+  overflow-wrap: anywhere;
+  border: 1px solid rgba(120, 226, 232, .22);
+  border-radius: 11px;
+  background: rgba(7, 18, 34, .62);
+  color: #8ee8eb;
+  font-size: 14px;
+}
+.verification-dialog .verification-instructions {
+  margin-top: 2px;
+  color: #cbd7e7;
+}
+.verification-check-button {
+  margin-top: 6px;
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.verification-check-button:disabled {
+  opacity: .7;
+  cursor: wait;
+}
+.verification-dialog .verification-wait-note {
+  color: #86dce1;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.verification-dialog .verification-spam-note {
+  color: #899bb2;
+  font-size: 11px;
+}
+@media (max-width: 480px) {
+  .verification-overlay { padding: 14px; }
+  .verification-dialog { gap: 12px; border-radius: 18px; }
+  .verification-dialog p { font-size: 12px; }
+  .verification-address { font-size: 13px; }
+}
