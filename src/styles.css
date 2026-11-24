@@ -1212,6 +1212,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   margin-top: 2px;
   color: #cbd7e7;
 }
+.verification-back-button {
+  min-height: 46px;
+  margin-top: 4px;
+  border-color: rgba(120, 226, 232, .26);
+  background: rgba(255, 255, 255, .035);
+  color: #dce9f8;
+}
+.verification-back-button:disabled {
+  opacity: .7;
+  cursor: wait;
+}
 .verification-check-button {
   margin-top: 6px;
   min-height: 48px;
