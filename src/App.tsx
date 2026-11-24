@@ -2,11 +2,21 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { FormEvent, ChangeEvent } from 'react'
 import { supabase } from './lib/supabase'
 import PdfPreview from './PdfPreview'
-import { Atom, BookOpen, Video, FileText, ClipboardList, LogIn, LogOut, Menu, X, ArrowUpRight, ShieldCheck, GraduationCap, Mail, Lock, Plus, RefreshCw, Upload, Trash2, Pencil, Check, CircleHelp, Trophy, UserRound, MessageSquare, Heart, Eye, EyeOff, RotateCcw, Play, Clock3, Sparkles, Share2 } from 'lucide-react'
+import { Atom, BookOpen, Video, FileText, ClipboardList, LogIn, LogOut, Menu, X, ArrowUpRight, ShieldCheck, GraduationCap, Mail, Lock, Plus, RefreshCw, Upload, Trash2, Pencil, Check, CircleHelp, Trophy, UserRound, MessageSquare, Heart, Eye, EyeOff, RotateCcw, Play, Clock3, Sparkles, Share2, Bell, BellOff } from 'lucide-react'
 
 type Tab = 'home' | 'posts' | 'notes' | 'videos' | 'resources' | 'quizzes' | 'about' | 'contact' | 'reviews' | 'account' | 'admin'
 type Row = Record<string, any>
 type ContentKey = 'notes' | 'videos' | 'resources' | 'quizzes'
+
+const VAPID_PUBLIC_KEY = 'BIM4FbyLYCoib1bATdk9QsKOgFid5tpDKmWpeZ5G_S4t_Roe0XHL5Jhxlmy6cl-fQq-IU4SQamMCBciC1zPbMoI'
+const base64UrlToUint8Array = (value: string) => {
+  const padding = '='.repeat((4 - value.length % 4) % 4)
+  const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const raw = window.atob(base64)
+  const bytes = new Uint8Array(raw.length)
+  for (let index = 0; index < raw.length; index++) bytes[index] = raw.charCodeAt(index)
+  return bytes
+}
 const tableFor: Record<ContentKey, string> = { notes: 'notes', videos: 'video_lessons', resources: 'resources', quizzes: 'quizzes' }
 const labelFor: Record<ContentKey, string> = { notes: 'Notes', videos: 'Video lessons', resources: 'Resources', quizzes: 'Quizzes' }
 const nav: { id: Tab; label: string }[] = [
@@ -152,6 +162,8 @@ export default function App() {
   const [history, setHistory] = useState<Row[]>([])
   const [recovering, setRecovering] = useState(false)
   const [newPassword, setNewPassword] = useState('')
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushBusy, setPushBusy] = useState(false)
   const [reviews, setReviews] = useState<Row[]>([])
   const [reviewDraft, setReviewDraft] = useState({ rating: 5, comment: '' })
   const [reviewLoading, setReviewLoading] = useState(false)
@@ -405,6 +417,26 @@ export default function App() {
   }, [pendingVerificationEmail])
   useEffect(() => { if (session?.user) void loadStudentHistory() }, [session?.user?.id])
   useEffect(() => {
+    let cancelled = false
+    const loadPushStatus = async () => {
+      setPushEnabled(false)
+      if (!session?.user?.id || !supabase || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) return
+      try {
+        const registration = await navigator.serviceWorker.getRegistration('/')
+        const subscription = await registration?.pushManager.getSubscription()
+        if (!subscription) return
+        const { data, error } = await supabase.functions.invoke('psb-push', {
+          body: { action: 'status', endpoint: subscription.endpoint }
+        })
+        if (!cancelled && !error) setPushEnabled(data?.enabled === true)
+      } catch {
+        if (!cancelled) setPushEnabled(false)
+      }
+    }
+    void loadPushStatus()
+    return () => { cancelled = true }
+  }, [session?.user?.id])
+  useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 1650)
     return () => window.clearTimeout(timer)
   }, [])
@@ -651,6 +683,73 @@ export default function App() {
     const { error } = await supabase.auth.signOut()
     setStaff(false); setSession(null); changeTab('home')
     notify(error ? error.message : 'You have signed out.')
+  }
+
+  const enablePhoneNotifications = async () => {
+    if (!supabase || !session?.user) return notify('Please sign in before enabling phone notifications.')
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      return notify('This browser does not support website push notifications. Please use Chrome on Android.')
+    }
+    setPushBusy(true)
+    try {
+      let permission = Notification.permission
+      if (permission === 'default') permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        notify(permission === 'denied'
+          ? 'Notifications are blocked for this website. Allow them in Chrome site settings, then try again.'
+          : 'Notification permission was not granted.')
+        return
+      }
+
+      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      await navigator.serviceWorker.ready
+      let subscription = await registration.pushManager.getSubscription()
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: base64UrlToUint8Array(VAPID_PUBLIC_KEY)
+        })
+      }
+
+      const { data, error } = await supabase.functions.invoke('psb-push', {
+        body: { action: 'subscribe', subscription: subscription.toJSON() }
+      })
+      if (error || data?.enabled !== true) {
+        throw new Error(error?.message || 'Could not save this phone for notifications.')
+      }
+      setPushEnabled(true)
+      notify('Phone notifications are enabled. New published posts and study uploads will reach this device.')
+    } catch (error) {
+      notify((error as Error)?.message || 'Could not enable phone notifications. Please try again.')
+    } finally {
+      setPushBusy(false)
+    }
+  }
+
+  const disablePhoneNotifications = async () => {
+    if (!supabase) return
+    setPushBusy(true)
+    try {
+      const registration = await navigator.serviceWorker.getRegistration('/')
+      const subscription = await registration?.pushManager.getSubscription()
+      if (!subscription) {
+        setPushEnabled(false)
+        notify('Phone notifications are already turned off on this device.')
+        return
+      }
+
+      const { error } = await supabase.functions.invoke('psb-push', {
+        body: { action: 'unsubscribe', endpoint: subscription.endpoint }
+      })
+      if (error) throw new Error(error.message)
+      await subscription.unsubscribe()
+      setPushEnabled(false)
+      notify('Phone notifications have been turned off on this device.')
+    } catch (error) {
+      notify((error as Error)?.message || 'Could not turn off phone notifications.')
+    } finally {
+      setPushBusy(false)
+    }
   }
 
   const startQuiz = async (quiz: Row) => {
@@ -1331,6 +1430,17 @@ export default function App() {
         {authMode === 'signin' && <button type="button" className="switch" onClick={resetPassword} disabled={busy}>Forgot password? Send reset email</button>}
         <button type="button" className="switch" disabled={busy} onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}>{authMode === 'signin' ? 'New here? Create an account' : 'Already registered? Sign in'}</button>
       </form> : <div className="account-layout"><div className="account-summary"><UserRound/><b>{userEmail}</b><span>{staff ? 'Teacher account' : 'Student account'}</span><button className="secondary" onClick={signOut}><LogOut size={15}/> Sign out</button></div>
+        <section className="push-settings-card" aria-labelledby="push-settings-title">
+          <div className="push-settings-copy">
+            <span className="eyebrow">PHONE NOTIFICATIONS</span>
+            <h2 id="push-settings-title">New study updates, straight to your phone</h2>
+            <p>Get a phone notification when Suraj Sir publishes a new post, notes, video lesson, resource, quiz or announcement.</p>
+            <small>These are phone system notifications, not just messages inside the website. You can turn them off at any time.</small>
+          </div>
+          <button type="button" className={pushEnabled ? 'secondary push-settings-action' : 'primary push-settings-action'} onClick={() => void (pushEnabled ? disablePhoneNotifications() : enablePhoneNotifications())} disabled={pushBusy}>
+            {pushBusy ? 'Please wait…' : pushEnabled ? <><BellOff size={17}/> Turn off notifications</> : <><Bell size={17}/> Enable phone notifications</>}
+          </button>
+        </section>
         <form className="form-card" onSubmit={saveProfile}><h2>Student profile</h2><label>Full name<input value={profile.full_name} readOnly disabled/><small className="review-hint">Registered name is locked after account creation.</small></label><label>Class<input value={'Class ' + profile.class_level} readOnly disabled/><small className="review-hint">Registered class is locked after account creation.</small></label><label>Phone (optional)<input value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} placeholder="Your contact number"/></label><button className="primary full" disabled={busy}>Save contact number <Check size={16}/></button></form>
         <div className="history-panel"><h2><Trophy size={18}/> Recent quiz attempts</h2>{history.length ? history.map(h => <div className="history-row" key={h.id}><span>{rows.quizzes.find(q => q.id === h.quiz_id)?.title || 'Physics quiz'}</span><b>{h.score}/{h.total_questions}</b><small>{new Date(h.attempted_at).toLocaleDateString()}</small></div>) : <p>No quiz attempts yet. Start a quiz to see your progress here.</p>}</div>
       </div>}
