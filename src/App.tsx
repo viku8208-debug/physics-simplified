@@ -4,7 +4,7 @@ import { supabase } from './lib/supabase'
 import PdfPreview from './PdfPreview'
 import { Atom, BookOpen, Video, FileText, ClipboardList, LogIn, LogOut, Menu, X, ArrowUpRight, ShieldCheck, GraduationCap, Mail, Lock, Plus, RefreshCw, Upload, Trash2, Pencil, Check, CircleHelp, Trophy, UserRound, MessageSquare, Heart, Eye, EyeOff, RotateCcw, Play, Clock3, Sparkles, Share2, Bell, BellOff } from 'lucide-react'
 
-type Tab = 'home' | 'posts' | 'notes' | 'videos' | 'resources' | 'quizzes' | 'about' | 'contact' | 'reviews' | 'account' | 'admin'
+type Tab = 'home' | 'posts' | 'notes' | 'videos' | 'resources' | 'quizzes' | 'about' | 'contact' | 'reviews' | 'terms' | 'privacy' | 'account' | 'admin'
 type Row = Record<string, any>
 type ContentKey = 'notes' | 'videos' | 'resources' | 'quizzes'
 
@@ -28,7 +28,7 @@ const nav: { id: Tab; label: string }[] = [
 const tabPath: Record<Tab, string> = {
   home: '/', posts: '/posts', notes: '/notes', videos: '/videos', resources: '/resources',
   quizzes: '/quizzes', about: '/about', contact: '/contact', reviews: '/reviews',
-  account: '/account', admin: '/admin.html'
+  terms: '/terms', privacy: '/privacy', account: '/account', admin: '/admin.html'
 }
 const tabFromPath = (pathname: string): Tab => {
   const path = pathname.toLowerCase().replace(/\/+$/, '') || '/'
@@ -71,6 +71,14 @@ const seoByTab: Record<Tab, { title: string; description: string }> = {
   reviews: {
     title: 'Student Reviews | Physics by Suraj Bhardwaj',
     description: 'Read student reviews about learning Physics with Suraj Bhardwaj and the PSB learning resources.'
+  },
+  terms: {
+    title: 'Terms & Conditions | Physics by Suraj Bhardwaj',
+    description: 'Terms for using the Physics by Suraj Bhardwaj learning website, accounts, study materials and phone notifications.'
+  },
+  privacy: {
+    title: 'Privacy Policy | Physics by Suraj Bhardwaj',
+    description: 'How Physics by Suraj Bhardwaj handles student account details, learning activity and optional phone push notifications.'
   },
   account: {
     title: 'Student Account | Physics by Suraj Bhardwaj',
@@ -164,6 +172,8 @@ export default function App() {
   const [newPassword, setNewPassword] = useState('')
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushBusy, setPushBusy] = useState(false)
+  const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [pushUpdatesConsent, setPushUpdatesConsent] = useState(false)
   const [reviews, setReviews] = useState<Row[]>([])
   const [reviewDraft, setReviewDraft] = useState({ rating: 5, comment: '' })
   const [reviewLoading, setReviewLoading] = useState(false)
@@ -542,6 +552,7 @@ export default function App() {
   }
   const signUp = async (e: FormEvent) => {
     e.preventDefault()
+    if (!acceptedTerms) return notify('Please accept the Terms & Conditions and Privacy Policy before creating an account.')
     if (authRequestInFlight.current) return
     if (!supabase) return notify('Backend configuration is missing. Contact the site administrator.')
     authRequestInFlight.current = true
@@ -552,7 +563,14 @@ export default function App() {
         password,
         options: {
           emailRedirectTo: 'https://physicsbysurajbhardwaj.in/',
-          data: { full_name: name.trim(), class_level: Number(studentClass) }
+          data: {
+            full_name: name.trim(),
+            class_level: Number(studentClass),
+            terms_accepted: true,
+            terms_version: '2026-11-24',
+            terms_accepted_at: new Date().toISOString(),
+            push_notifications_opt_in: pushUpdatesConsent
+          }
         }
       })
       if (error) { notify(authErrorMessage(error)); return }
@@ -1426,6 +1444,16 @@ export default function App() {
         {authMode === 'signup' && <><label>Full name<input required minLength={2} value={name} onChange={e => setName(e.target.value)} placeholder="Your name"/></label><label>Class<select value={studentClass} onChange={e => setStudentClass(e.target.value)}>{[7, 8, 9, 10, 11, 12].map(n => <option value={String(n)} key={n}>Class {n}</option>)}</select></label></>}
         <label>Email address<input required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com"/></label>
         <label>Password<input required minLength={6} type="password" autoComplete={authMode === 'signin' ? 'current-password' : 'new-password'} value={password} onChange={e => setPassword(e.target.value)} placeholder="At least 6 characters"/></label>
+        {authMode === 'signup' && <>
+          <label className="consent-row">
+            <input type="checkbox" required checked={acceptedTerms} onChange={e => setAcceptedTerms(e.target.checked)}/>
+            <span>I have read and agree to the <a href="/terms" target="_blank" rel="noreferrer">Terms &amp; Conditions</a> and <a href="/privacy" target="_blank" rel="noreferrer">Privacy Policy</a>. This is required to create my account.</span>
+          </label>
+          <label className="consent-row consent-row-optional">
+            <input type="checkbox" checked={pushUpdatesConsent} onChange={e => setPushUpdatesConsent(e.target.checked)}/>
+            <span><b>Optional:</b> I would like to receive new study updates from Physics by Suraj Bhardwaj as phone notifications. I understand that Chrome/Android will show a separate permission prompt, and I must choose Allow there. I can turn notifications off later.</span>
+          </label>
+        </>}
         <button className="primary full" disabled={busy}>{busy ? 'Please wait…' : authMode === 'signin' ? 'Sign in' : 'Create account'} <ArrowUpRight size={17}/></button>
         {authMode === 'signin' && <button type="button" className="switch" onClick={resetPassword} disabled={busy}>Forgot password? Send reset email</button>}
         <button type="button" className="switch" disabled={busy} onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}>{authMode === 'signin' ? 'New here? Create an account' : 'Already registered? Sign in'}</button>
@@ -1516,6 +1544,62 @@ export default function App() {
       </>}
     </main>}
 
+    {tab === 'terms' && <main className="page legal-page">
+      <div className="page-intro"><span className="eyebrow">PSB WEBSITE POLICIES</span><h1>Terms &amp; Conditions<em>.</em></h1><p>Effective date: 24 November 2026</p></div>
+      <article className="legal-content">
+        <p>These Terms &amp; Conditions explain the rules for using the Physics by Suraj Bhardwaj website (the “Website”). By creating an account, you agree to these terms. The Privacy Policy explains how account and website information is handled.</p>
+        <h2>1. Accounts</h2>
+        <p>Provide a valid email address and accurate account details. Keep your password private and use your own account. Email verification may be required before account features are available. You are responsible for activity carried out through your signed-in account.</p>
+        <h2>2. Learning content</h2>
+        <p>The Website may provide notes, worksheets, video lessons, resources, quizzes, tests, posts and announcements. Content is provided for learning and educational support. Teachers may update, replace, schedule or remove materials. Availability and access may change.</p>
+        <h2>3. Student posts and comments</h2>
+        <p>Use posts, likes and comments respectfully. Do not submit abusive, unlawful, misleading, threatening or infringing content, or attempt to disrupt the Website. Content that violates these rules may be removed and access may be restricted.</p>
+        <h2>4. Quizzes and tests</h2>
+        <p>Follow the instructions and time limits shown for each quiz or test. Timed assessments may be automatically submitted when their time expires. Results are learning records and should not be treated as a guarantee of examination or academic outcomes.</p>
+        <h2>5. Phone notifications</h2>
+        <p>Phone push notifications are optional. Ticking the optional signup preference records your request to receive new study updates, but it does not grant browser or Android permission. Your browser or device must separately show a permission prompt and you must choose Allow. You can turn notifications off in your account settings or in your device/browser settings. Delivery depends on your browser, device, network and notification settings.</p>
+        <h2>6. Emails and account messages</h2>
+        <p>The Website may send necessary account and security emails, such as email verification and password recovery messages. These messages are part of operating your account. Optional content-update emails will only be sent where that service is offered and configured.</p>
+        <h2>7. Third-party services and external links</h2>
+        <p>The Website uses third-party infrastructure for account authentication, database and file storage, and browser push delivery. External video, resource and website links may be governed by their own providers’ terms and privacy practices.</p>
+        <h2>8. Intellectual property</h2>
+        <p>Unless stated otherwise, Website branding and learning materials are owned by or used with permission by their respective rights holders. Do not copy, republish or commercially distribute materials without permission from the relevant rights holder.</p>
+        <h2>9. Availability and changes</h2>
+        <p>We aim to keep the Website useful and available but cannot guarantee uninterrupted access, error-free operation or delivery of every notification. These terms may be updated; the effective date above will be revised when a new version is published.</p>
+        <h2>10. Contact</h2>
+        <p>For questions about these terms, use the <a href="/contact">Website contact form</a>.</p>
+        <p className="legal-policy-link">See also the <a href="/privacy">Privacy Policy</a>.</p>
+      </article>
+    </main>}
+
+    {tab === 'privacy' && <main className="page legal-page">
+      <div className="page-intro"><span className="eyebrow">PSB WEBSITE POLICIES</span><h1>Privacy Policy<em>.</em></h1><p>Effective date: 24 November 2026</p></div>
+      <article className="legal-content">
+        <p>This Privacy Policy describes information handled by the Physics by Suraj Bhardwaj website (“Website”) and how it is used to provide learning and account features.</p>
+        <h2>1. Information you provide</h2>
+        <p>When you create an account, the Website processes your name, email address, class level and authentication details. You may optionally provide a phone number. Contact forms, posts and comments contain information you choose to submit.</p>
+        <h2>2. Learning activity</h2>
+        <p>The Website may store quiz attempts and results, post likes and comments, reviews, and other activity needed to provide learning and community features.</p>
+        <h2>3. Phone notification data</h2>
+        <p>Only after you opt in and separately allow notifications in your browser/device, the Website stores a push subscription for that device. This includes a browser-provided endpoint and encryption keys needed to deliver notifications. The subscription is associated with your account so it can be removed when you turn notifications off. A push provider may process delivery requests.</p>
+        <h2>4. How information is used</h2>
+        <p>Information is used to create and secure accounts, verify email addresses, provide learning materials, operate quizzes and posts, respond to contact requests, maintain the Website and send the account or optional update messages you have chosen to receive.</p>
+        <h2>5. Service providers</h2>
+        <p>Authentication, database and file-storage services are provided through Supabase. Browser push messages are delivered through the browser/device push service. These providers process information as needed to operate their services under their own policies and terms.</p>
+        <h2>6. Sharing and public content</h2>
+        <p>Your email address and password are not shown publicly by the Website. Your comments, posts, likes, reviews or display name may be visible to other visitors where the relevant feature displays them. Do not put private information into public posts or comments.</p>
+        <h2>7. Security and retention</h2>
+        <p>The Website uses access controls and service-provider security features to protect account data. No internet service can guarantee absolute security. Information is retained for as long as needed to operate the account and related learning records, meet operational requirements, or handle disputes and security issues.</p>
+        <h2>8. Your choices</h2>
+        <p>You can decline optional push notifications, turn them off in account settings, or revoke browser/device permission. You can also contact the Website through its contact form with questions or requests about your account information.</p>
+        <h2>9. Changes to this policy</h2>
+        <p>This policy may be updated as Website features change. The effective date at the top indicates the current published version.</p>
+        <h2>10. Contact</h2>
+        <p>For privacy questions or requests, use the <a href="/contact">Website contact form</a>.</p>
+        <p className="legal-policy-link">See also the <a href="/terms">Terms &amp; Conditions</a>.</p>
+      </article>
+    </main>}
+
     {tab === 'contact' && <main className="page narrow"><div className="page-intro"><span className="eyebrow">GET IN TOUCH</span><h1>Let's connect<em>.</em></h1><p>Send a message about classes, learning material or anything related to Physics by Suraj Bhardwaj.</p></div><form className="form-card" onSubmit={sendContact}>
       <label>Your name<input required minLength={2} maxLength={100} value={contact.name} onChange={e => setContact({ ...contact, name: e.target.value })}/></label>
       <label>Email address<input required type="email" maxLength={254} value={contact.email} onChange={e => setContact({ ...contact, email: e.target.value })}/></label>
@@ -1586,6 +1670,6 @@ export default function App() {
         <footer className="view-only-note">Viewing mode · Download controls are hidden where supported. Screen capture cannot be completely prevented in a browser.</footer>
       </section>
     </div>}
-    <footer className="footer"><div className="brand footer-brand"><PSBMark small/><span><b>PHYSICS <i>BY SURAJ BHARDWAJ</i></b><small>Concept to Clarity · PSB</small></span></div><div className="footer-links">{['home', ...nav.map(x => x.id)].map(x => <button key={x} onClick={() => changeTab(x as Tab)}>{x === 'home' ? 'Home' : x === 'posts' ? 'Posts' : x === 'about' ? 'About' : x === 'contact' ? 'Contact' : x === 'reviews' ? 'Reviews' : labelFor[x as ContentKey] || x}</button>)}</div><small>© {new Date().getFullYear()} Physics by Suraj Bhardwaj. PSB.</small></footer>
+    <footer className="footer"><div className="brand footer-brand"><PSBMark small/><span><b>PHYSICS <i>BY SURAJ BHARDWAJ</i></b><small>Concept to Clarity · PSB</small></span></div><div className="footer-links">{['home', ...nav.map(x => x.id), 'terms', 'privacy'].map(x => <button key={x} onClick={() => changeTab(x as Tab)}>{x === 'home' ? 'Home' : x === 'posts' ? 'Posts' : x === 'about' ? 'About' : x === 'contact' ? 'Contact' : x === 'reviews' ? 'Reviews' : x === 'terms' ? 'Terms & Conditions' : x === 'privacy' ? 'Privacy Policy' : labelFor[x as ContentKey] || x}</button>)}</div><small>© {new Date().getFullYear()} Physics by Suraj Bhardwaj. PSB.</small></footer>
   </div>
 }
