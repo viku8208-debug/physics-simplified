@@ -1,0 +1,26 @@
+{
+  "id": "/",
+  "name": "Physics by Suraj Bhardwaj",
+  "short_name": "Physics by Suraj",
+  "description": "Concept to Clarity. Physics notes, video lessons, resources, posts and quizzes.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#091629",
+  "theme_color": "#091629",
+  "icons": [
+    {
+      "src": "/psb-logo-transparent.webp",
+      "sizes": "any",
+      "type": "image/webp",
+      "purpose": "any"
+    },
+    {
+      "src": "/psb-logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
