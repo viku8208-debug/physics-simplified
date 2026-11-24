@@ -544,6 +544,15 @@ export default function App() {
       setBusy(false)
     }
   }
+  const returnToSignup = () => {
+    try { window.localStorage.removeItem('psb-pending-verification-email') }
+    catch { /* Storage may be unavailable in private browsing. */ }
+    setPendingVerificationEmail('')
+    setVerificationCheckBusy(false)
+    setAuthMode('signup')
+    setNotice('Correct your email address below, then create your account again.')
+  }
+
   const checkEmailVerification = async () => {
     if (!supabase || !pendingVerificationEmail || verificationCheckBusy) return
     setVerificationCheckBusy(true)
@@ -1428,6 +1437,7 @@ export default function App() {
         <p id="verification-description">A verification email has been sent to</p>
         <strong className="verification-address">{pendingVerificationEmail}</strong>
         <p className="verification-instructions">Open the email from Physics by Suraj Bhardwaj and tap <b>Confirm Email</b>. Keep this page open while you verify your address.</p>
+        <button type="button" className="secondary full verification-back-button" onClick={returnToSignup} disabled={verificationCheckBusy}>← Back to sign up</button>
         <button className="primary full verification-check-button" onClick={() => void checkEmailVerification()} disabled={verificationCheckBusy}>
           {verificationCheckBusy ? 'Checking verification…' : "I've verified my email"}
           <RefreshCw size={17}/>
