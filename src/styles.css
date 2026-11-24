@@ -1487,3 +1487,75 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   }
   .push-settings-action { width: 100%; white-space: normal; }
 }
+
+
+/* Signup consent and website policies */
+.form-card .consent-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  margin: 14px 0 8px;
+  padding: 13px 14px;
+  border: 1px solid rgba(120, 226, 232, .20);
+  border-radius: 12px;
+  background: rgba(7, 19, 35, .42);
+  color: #c9d8e9;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.7;
+  cursor: pointer;
+}
+.form-card .consent-row input[type="checkbox"] {
+  flex: 0 0 17px;
+  width: 17px;
+  height: 17px;
+  margin: 2px 0 0;
+  accent-color: var(--cyan);
+  cursor: pointer;
+}
+.form-card .consent-row span { display: block; min-width: 0; }
+.form-card .consent-row a {
+  color: var(--cyan);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.form-card .consent-row-optional {
+  border-color: rgba(255, 255, 255, .10);
+  background: rgba(255, 255, 255, .018);
+}
+.legal-page { width: min(100% - 36px, 900px); }
+.legal-content {
+  margin: 24px 0 64px;
+  padding: clamp(20px, 4vw, 38px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(155deg, rgba(16, 34, 57, .96), rgba(8, 20, 37, .98));
+  box-shadow: 0 18px 55px rgba(0, 0, 0, .14);
+}
+.legal-content p {
+  color: #b9c8dc;
+  font-size: 14px;
+  line-height: 1.85;
+  margin: 0 0 16px;
+}
+.legal-content h2 {
+  margin: 28px 0 9px;
+  color: #f1f7ff;
+  font: 800 18px/1.35 Manrope, sans-serif;
+  letter-spacing: -.02em;
+}
+.legal-content a {
+  color: var(--cyan);
+  font-weight: 750;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.legal-content .legal-policy-link { margin-top: 28px; }
+@media (max-width: 520px) {
+  .form-card .consent-row { padding: 12px; font-size: 11px; }
+  .legal-page { width: min(100% - 26px, 900px); }
+  .legal-content { border-radius: 14px; }
+  .legal-content p { font-size: 13px; }
+  .legal-content h2 { font-size: 16px; }
+}
