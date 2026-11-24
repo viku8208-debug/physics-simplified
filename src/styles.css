@@ -1431,3 +1431,59 @@ button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible,
   .material-viewer-body .psb-pdf-canvas-wrap { padding: 6px; }
   .material-viewer .view-only-note { padding: 8px 12px; font-size: 9px; }
 }
+
+
+/* Phone push notification settings */
+.push-settings-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+  margin: 18px 0;
+  padding: clamp(18px, 4vw, 26px);
+  border: 1px solid rgba(120, 226, 232, .24);
+  border-radius: 17px;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(67, 160, 186, .13), transparent 48%),
+    linear-gradient(145deg, rgba(17, 40, 65, .96), rgba(9, 23, 42, .98));
+  box-shadow: 0 16px 42px rgba(0, 0, 0, .16);
+}
+.push-settings-copy { min-width: 0; }
+.push-settings-copy .eyebrow {
+  color: var(--cyan);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .16em;
+}
+.push-settings-copy h2 {
+  margin: 9px 0 8px;
+  color: #f1f7ff;
+  font: 800 clamp(18px, 3vw, 22px)/1.25 Manrope, sans-serif;
+  letter-spacing: -.025em;
+}
+.push-settings-copy p {
+  max-width: 620px;
+  margin: 0 0 9px;
+  color: #b8c8dc;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.push-settings-copy small {
+  display: block;
+  color: #8ca1bb;
+  font-size: 11px;
+  line-height: 1.6;
+}
+.push-settings-action {
+  min-height: 48px;
+  white-space: nowrap;
+  align-self: center;
+}
+@media (max-width: 620px) {
+  .push-settings-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    border-radius: 14px;
+  }
+  .push-settings-action { width: 100%; white-space: normal; }
+}
