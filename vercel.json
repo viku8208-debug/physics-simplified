@@ -47,6 +47,14 @@
     {
       "source": "/account",
       "destination": "/"
+    },
+    {
+      "source": "/terms",
+      "destination": "/"
+    },
+    {
+      "source": "/privacy",
+      "destination": "/"
     }
   ]
 }
